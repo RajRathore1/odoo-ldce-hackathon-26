@@ -11,7 +11,7 @@ import {
 import { PanelCard } from "@/components/panel-card";
 import { RankingList } from "@/components/ranking-list";
 import { StatCard } from "@/components/stat-card";
-import { TrendChart } from "@/components/trend-chart";
+import { TrendBarChart } from "@/components/trend-bar-chart";
 import { UsersTable } from "@/components/users-table";
 import { cn } from "@/lib/cn";
 import {
@@ -288,7 +288,7 @@ export function AdminDashboard() {
           title="User trends & analytics"
           description={`New sign-ups · ${periodLabel}`}
         >
-          <TrendChart data={data.signups} />
+          <TrendBarChart data={data.signups} />
         </PanelCard>
       </div>
 
