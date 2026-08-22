@@ -102,3 +102,23 @@ export async function getItinerary(id: string) {
     })),
   }));
 }
+
+export type StopDto = {
+  id: number;
+  title: string;
+  city: { id: number; name: string; country_name: string };
+  start_date: string;
+  end_date: string;
+  nights: number;
+  order: number;
+  budget: string | null;
+  activities_count: number;
+  notes: string;
+};
+
+export async function listStops(tripId: string) {
+  const page = await apiFetch<Paginated<StopDto>>(
+    `/trips/${tripId}/stops/?page_size=100`,
+  );
+  return page.results;
+}

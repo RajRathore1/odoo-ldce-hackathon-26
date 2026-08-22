@@ -1,8 +1,15 @@
 import { notFound } from "next/navigation";
 import { ItineraryBudgetView } from "@/components/itinerary-budget-view";
 import { StatusBadge } from "@/components/ui/badge";
+import { TripBudgetPanel } from "@/components/trip-budget-panel";
+import { getBudget, listExpenses } from "@/lib/api/budget-service";
 import { ApiError } from "@/lib/api/envelope";
-import { getItinerary, getTripDto, toTrip } from "@/lib/api/trips-service";
+import {
+  getItinerary,
+  getTripDto,
+  listStops,
+  toTrip,
+} from "@/lib/api/trips-service";
 import { formatDateRange, formatMoney } from "@/lib/format";
 
 export default async function TripItineraryPage({
@@ -14,14 +21,26 @@ export default async function TripItineraryPage({
 
   let trip;
   let days;
+  let budget;
+  let expenses;
+  let stops;
+  let tripDates = { start: "", end: "" };
 
   try {
-    const [dto, itinerary] = await Promise.all([
-      getTripDto(id),
-      getItinerary(id),
-    ]);
+    const [dto, itinerary, budgetDto, expenseRows, stopRows] =
+      await Promise.all([
+        getTripDto(id),
+        getItinerary(id),
+        getBudget(id),
+        listExpenses(id),
+        listStops(id),
+      ]);
     trip = toTrip(dto);
     days = itinerary;
+    budget = budgetDto;
+    expenses = expenseRows;
+    stops = stopRows;
+    tripDates = { start: dto.start_date, end: dto.end_date };
   } catch (error) {
     if (error instanceof ApiError && [403, 404].includes(error.status)) {
       notFound();
@@ -59,6 +78,18 @@ export default async function TripItineraryPage({
       </div>
 
       <ItineraryBudgetView days={days} />
+
+      <TripBudgetPanel
+        tripId={id}
+        budget={budget}
+        expenses={expenses}
+        stops={stops.map((stop) => ({
+          label: stop.title || stop.city.name,
+          value: String(stop.id),
+        }))}
+        tripStart={tripDates.start}
+        tripEnd={tripDates.end}
+      />
     </div>
   );
 }
