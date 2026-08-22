@@ -1,0 +1,37 @@
+line-length = 95
+target-version = "py311"
+
+exclude = [
+    ".venv",
+    "*/migrations/*",  # generated; not ours to style
+    "staticfiles",
+]
+
+[lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort — import order
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "DJ",   # flake8-django
+    "SIM",  # simplify
+    "RUF",
+]
+ignore = [
+    "E501",    # line length is handled by the formatter
+    "B008",    # function call in argument default — normal in DRF/Django
+    "RUF012",  # mutable class attrs need ClassVar — noisy on Django Meta/DRF
+]
+
+[lint.per-file-ignores]
+# Settings modules star-import on purpose.
+"config/settings/*.py" = ["F403", "F405"]
+"*/tests/*.py" = ["S101"]
+
+[lint.isort]
+known-first-party = ["core", "apps", "config"]
+
+[format]
+quote-style = "double"
