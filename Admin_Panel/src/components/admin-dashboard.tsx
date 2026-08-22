@@ -158,17 +158,19 @@ export function AdminDashboard() {
 
   const filteredCities = useMemo(
     () =>
-      country === "all"
+      (country === "all"
         ? cityRows
-        : cityRows.filter((city) => city.country === country),
+        : cityRows.filter((city) => city.country === country)
+      ).slice(0, 6),
     [cityRows, country],
   );
 
   const filteredActivities = useMemo(
     () =>
-      activityFilter === "all"
+      (activityFilter === "all"
         ? activityRows
-        : activityRows.filter((activity) => activity.type === activityFilter),
+        : activityRows.filter((activity) => activity.type === activityFilter)
+      ).slice(0, 6),
     [activityRows, activityFilter],
   );
 
@@ -294,7 +296,9 @@ export function AdminDashboard() {
       <div id="cities" className="grid gap-6 lg:grid-cols-2">
         <PanelCard
           title="Popular cities"
-          description={`Ranked by trips planned · ${periodLabel}`}
+          description={
+            liveCities ? "Ranked by popularity score" : `Ranked by trips planned · ${periodLabel}`
+          }
           action={
             <select
               value={country}
@@ -320,7 +324,9 @@ export function AdminDashboard() {
         <div id="activities">
           <PanelCard
             title="Popular activities"
-            description={`Ranked by bookings · ${periodLabel}`}
+            description={
+              liveActivities ? "Ranked by popularity score" : `Ranked by bookings · ${periodLabel}`
+            }
             action={
               <div className="inline-flex flex-wrap gap-1 rounded-full border border-border bg-bg p-1 text-sm">
                 {activityFilters.map((option) => (
