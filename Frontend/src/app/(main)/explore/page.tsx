@@ -1,7 +1,10 @@
 import { Suspense } from "react";
 import { ExploreView } from "@/components/explore-view";
+import { listCities } from "@/lib/api/geo-service";
 
-export default function ExplorePage() {
+export default async function ExplorePage() {
+  const regions = await listCities();
+
   return (
     <div className="space-y-8">
       <div>
@@ -15,7 +18,7 @@ export default function ExplorePage() {
       </div>
 
       <Suspense>
-        <ExploreView />
+        <ExploreView regions={regions} />
       </Suspense>
     </div>
   );

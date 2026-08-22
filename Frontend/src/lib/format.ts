@@ -1,8 +1,18 @@
-const money = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-});
+// Cities are priced in their own currency, so keep a formatter per currency.
+const moneyFormatters = new Map<string, Intl.NumberFormat>();
+
+function moneyFormatter(currency: string) {
+  let formatter = moneyFormatters.get(currency);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    });
+    moneyFormatters.set(currency, formatter);
+  }
+  return formatter;
+}
 
 // Trip dates are plain YYYY-MM-DD, so format them in UTC — otherwise the
 // server and the browser can disagree by a day and hydration blows up.
@@ -18,8 +28,8 @@ const dayWithYear = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
-export function formatMoney(amount: number) {
-  return money.format(amount);
+export function formatMoney(amount: number, currency = "INR") {
+  return moneyFormatter(currency).format(amount);
 }
 
 export function formatDateRange(start: string, end: string) {

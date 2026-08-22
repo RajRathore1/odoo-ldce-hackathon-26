@@ -19,7 +19,7 @@ export function RegionCard({ region }: { region: Region }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/0 to-black/10 transition-colors duration-200 group-hover:from-black/60" />
         <span className="absolute bottom-3 left-3 rounded-full bg-surface/90 px-2.5 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur-sm">
-          {region.tripCount} trips
+          {region.activityCount} activities
         </span>
       </div>
 
@@ -28,8 +28,10 @@ export function RegionCard({ region }: { region: Region }) {
         {region.blurb}
       </p>
       <p className="mt-1 text-sm">
-        <span className="font-semibold">{formatMoney(region.fromPrice)}</span>
-        <span className="text-text-muted"> to start</span>
+        <span className="font-semibold">
+          {formatMoney(region.avgDailyCost, region.currency)}
+        </span>
+        <span className="text-text-muted"> a day</span>
       </p>
     </Link>
   );

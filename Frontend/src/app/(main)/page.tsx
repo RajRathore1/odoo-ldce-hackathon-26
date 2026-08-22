@@ -1,12 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { LandingExplorer } from "@/components/landing-explorer";
+import { popularCities } from "@/lib/api/geo-service";
 import { listTrips } from "@/lib/api/trips-service";
 import { GlobeMark } from "@/components/navbar";
 import { buttonStyles } from "@/components/ui/button";
 
 export default async function HomePage() {
-  const trips = await listTrips();
+  const [trips, regions] = await Promise.all([listTrips(), popularCities()]);
 
   return (
     <div className="space-y-12">
@@ -68,7 +69,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <LandingExplorer trips={trips} />
+      <LandingExplorer trips={trips} regions={regions} />
     </div>
   );
 }
