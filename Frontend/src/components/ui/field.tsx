@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 import type { SelectOption } from "@/lib/types";
 
 export const controlStyles =
-  "w-full rounded-lg border border-border bg-surface px-3 text-sm text-text transition-colors placeholder:text-text-muted/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-bg";
+  "w-full rounded-xl border border-border bg-surface px-3 text-sm text-text transition-all placeholder:text-text-muted/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:bg-bg";
 
 const errorStyles = "border-danger focus:border-danger focus:ring-danger/20";
 

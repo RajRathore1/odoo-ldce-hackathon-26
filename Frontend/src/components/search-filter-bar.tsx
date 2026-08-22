@@ -32,7 +32,7 @@ export function SearchFilterBar({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 rounded-xl border border-border bg-surface p-3 sm:flex-row sm:items-center",
+        "flex flex-col gap-3 rounded-2xl border border-border bg-surface p-3 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center",
         className,
       )}
     >

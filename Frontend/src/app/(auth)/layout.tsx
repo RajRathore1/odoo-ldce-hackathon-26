@@ -14,15 +14,24 @@ export default function AuthLayout({
 }) {
   return (
     <div className="grid flex-1 lg:grid-cols-[1fr_1.1fr]">
-      <aside className="hidden flex-col justify-between bg-primary p-10 text-white lg:flex">
-        <Link href="/" className="flex items-center gap-2">
+      <aside className="relative hidden flex-col justify-between overflow-hidden bg-primary p-10 text-white lg:flex">
+        <div
+          aria-hidden
+          className="absolute -top-24 -right-24 size-96 rounded-full bg-accent/25 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="absolute bottom-0 left-0 h-72 w-72 -translate-x-1/3 translate-y-1/3 rounded-full bg-white/5 blur-3xl"
+        />
+
+        <Link href="/" className="relative z-10 flex items-center gap-2">
           <GlobeMark />
           <span className="font-heading text-xl font-semibold">
             GlobeTrotter
           </span>
         </Link>
 
-        <div className="max-w-sm">
+        <div className="relative z-10 max-w-sm">
           <h1 className="font-heading text-3xl leading-tight font-semibold">
             Every great trip starts with a rough plan.
           </h1>
@@ -36,7 +45,7 @@ export default function AuthLayout({
           </ul>
         </div>
 
-        <p className="text-sm text-white/50">
+        <p className="relative z-10 text-sm text-white/50">
           Odoo LDCE Hackathon 26 — GlobeTrotter
         </p>
       </aside>

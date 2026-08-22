@@ -13,7 +13,7 @@ type AuthCardProps = {
 
 export function AuthCard({ title, subtitle, footer, children }: AuthCardProps) {
   return (
-    <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">
+    <div className="rounded-3xl border border-border bg-surface p-6 shadow-xl shadow-text/5 sm:p-8">
       <h1 className="font-heading text-2xl font-semibold">{title}</h1>
       <p className="mt-1.5 text-sm text-text-muted">{subtitle}</p>
 

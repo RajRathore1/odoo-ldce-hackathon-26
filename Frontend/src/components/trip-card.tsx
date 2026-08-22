@@ -21,17 +21,18 @@ export function TripCard({ trip, href, className }: TripCardProps) {
   const card = (
     <article
       className={cn(
-        "group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-surface transition-shadow hover:shadow-md",
+        "group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
         className,
       )}
     >
       <div
         className={cn(
-          "relative h-28 bg-gradient-to-br sm:h-32",
+          "relative h-28 overflow-hidden bg-gradient-to-br sm:h-32",
           covers[trip.cover],
         )}
       >
-        <span className="absolute top-3 left-3 rounded-full bg-surface/90 px-2.5 py-1 text-xs font-medium text-primary">
+        <div className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/5" />
+        <span className="absolute top-3 left-3 rounded-full bg-surface/90 px-2.5 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur-sm">
           {trip.city}, {trip.country}
         </span>
       </div>
