@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm rounded-3xl border border-border bg-surface p-8 shadow-lg">
         <div className="flex flex-col items-center text-center">
           <span className="flex size-14 items-center justify-center rounded-2xl bg-primary text-accent">
-            <LoginIcon className="size-6" />
+            <GlobeMark className="size-7" />
           </span>
           <h1 className="mt-4 font-heading text-2xl font-semibold">
             Super Admin Login
@@ -96,20 +96,19 @@ export default function AdminLoginPage() {
   );
 }
 
-function LoginIcon({ className }: { className?: string }) {
+function GlobeMark({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 20 20"
+      viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
       className={className}
       aria-hidden
     >
-      <path d="M8 17H5a1.5 1.5 0 0 1-1.5-1.5v-11A1.5 1.5 0 0 1 5 3h3" />
-      <path d="M13 14l4-4-4-4M17 10H7" />
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3c2.5 2.6 3.8 5.6 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z" />
     </svg>
   );
 }
