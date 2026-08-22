@@ -4,8 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { HomeSummary } from "@/components/home-summary";
 import { LandingExplorer } from "@/components/landing-explorer";
-<<<<<<< HEAD
-import { GlobeMark } from "@/components/navbar";
 import { LoadingBlock } from "@/components/page-state";
 import { buttonStyles } from "@/components/ui/button";
 import { toRegion, toTrip } from "@/lib/api/adapters";
@@ -22,16 +20,6 @@ export default function HomePage() {
   const cities = useApi<CityDto[]>("/cities/popular/?limit=8");
 
   const loading = dashboard.loading || trips.loading || cities.loading;
-=======
-import { buttonStyles } from "@/components/ui/button";
-import { formatMoney } from "@/lib/format";
-import { trips } from "@/lib/mock-data";
-
-export default function HomePage() {
-  const year = new Date().getUTCFullYear();
-  const yearTrips = trips.filter((trip) => trip.startDate.startsWith(`${year}`));
-  const yearBudget = yearTrips.reduce((sum, trip) => sum + trip.budget, 0);
->>>>>>> efc356b54d6cbaeda028aaea0ae9048cdf74cee5
 
   return (
     <div className="space-y-8">
@@ -90,7 +78,6 @@ export default function HomePage() {
         </div>
       </section>
 
-<<<<<<< HEAD
       {loading ? (
         <LoadingBlock label="Loading your dashboard" />
       ) : (
@@ -102,22 +89,6 @@ export default function HomePage() {
           />
         </>
       )}
-=======
-      {yearTrips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface px-5 py-3 text-sm">
-          <span className="text-text-muted">This year:</span>
-          <span className="font-semibold text-primary">
-            {formatMoney(yearBudget)}
-          </span>
-          <span className="text-text-muted">
-            across {yearTrips.length}{" "}
-            {yearTrips.length === 1 ? "trip" : "trips"}
-          </span>
-        </div>
-      )}
-
-      <LandingExplorer />
->>>>>>> efc356b54d6cbaeda028aaea0ae9048cdf74cee5
     </div>
   );
 }

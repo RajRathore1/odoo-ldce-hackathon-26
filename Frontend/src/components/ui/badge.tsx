@@ -117,6 +117,19 @@ const statusIcon: Record<TripStatus, React.ReactNode> = {
       <path d="M2.5 6.3 5 8.8l4.5-5.6" />
     </svg>
   ),
+  cancelled: (
+    <svg
+      viewBox="0 0 12 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 3l6 6M9 3l-6 6" />
+    </svg>
+  ),
 };
 
 export function StatusBadge({
