@@ -1,0 +1,12 @@
+[
+  {"name": "Sightseeing", "slug": "sightseeing", "icon": "landmark", "description": "The things you would regret not seeing."},
+  {"name": "Food & Dining", "slug": "food", "icon": "utensils", "description": "Street stalls, markets and sit-down meals worth planning around."},
+  {"name": "Adventure", "slug": "adventure", "icon": "mountain", "description": "Anything with a safety briefing."},
+  {"name": "Culture & Heritage", "slug": "culture", "icon": "museum", "description": "Museums, monuments, performances and old quarters."},
+  {"name": "Nature & Outdoors", "slug": "nature", "icon": "tree", "description": "Trails, parks, lakes and viewpoints."},
+  {"name": "Nightlife", "slug": "nightlife", "icon": "moon", "description": "After dark — bars, live music, night markets."},
+  {"name": "Shopping", "slug": "shopping", "icon": "bag", "description": "Markets, souks and the one shop you came for."},
+  {"name": "Relaxation", "slug": "relax", "icon": "spa", "description": "Spas, beaches and the deliberately unscheduled afternoon."},
+  {"name": "Day Trips", "slug": "day-trips", "icon": "compass", "description": "Out and back in a day, usually with a driver."},
+  {"name": "Transport", "slug": "transport", "icon": "train", "description": "Journeys that are the point, not the overhead."}
+]
