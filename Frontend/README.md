@@ -48,8 +48,6 @@ Fonts: Poppins for headings (`font-heading`), Inter for body (default).
 
 ## Progress
 
-Built against `GlobeTrotter-Frontend-Plan (1).md`.
-
 - [x] Design system + shared components
 - [x] Hour 1 — Login & Registration
 - [ ] Hour 2 — Main landing page
