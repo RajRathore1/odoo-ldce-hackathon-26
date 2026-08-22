@@ -34,9 +34,42 @@ Generate a secret key with:
 | `community/` | public community feed |
 | `analytics/` | admin-only aggregate stats (no models) |
 
-## Migrations — read before running `migrate`
+## Database
 
-`AUTH_USER_MODEL` and `CITIES_LIGHT_APP_NAME` are both set in Step 2 and are
-effectively one-way once the first migration is applied. Do not run `migrate`
-until the `accounts.User` and `geo` models are in place; the two spots to
-change are marked `STEP 2` in `config/settings.py`.
+```bash
+./venv/Scripts/python.exe manage.py migrate
+./venv/Scripts/python.exe manage.py createsuperuser   # prompts for email, not username
+```
+
+`AUTH_USER_MODEL = accounts.User` (email login, no username) and
+`CITIES_LIGHT_APP_NAME = "geo"` are both set. `MIGRATION_MODULES` disables
+cities-light's own migrations so Country/Region/SubRegion/City are created in
+`geo` with the extra `cost_index` / `popularity` / `blurb` / `image` fields.
+There must be no `cities_light_*` tables; if you see any, the DB predates
+these settings — delete `db.sqlite3` and re-migrate.
+
+The city and activity tables are empty until the Step 4 import/seed.
+
+## Endpoints
+
+| Method | Path | Auth |
+|---|---|---|
+| GET | `/api/cities/` | public |
+| GET | `/api/cities/{id}/` | public |
+| GET | `/api/activities/` | public |
+| GET | `/api/activities/{id}/` | public |
+
+`/api/cities/` supports `?search=` (transliterated — `zurich`, `Zürich` and
+`zurich switzerland` all match), `?country=`, `?country_code=`, `?continent=`,
+`?region=`, `?cost_index_min=`, `?cost_index_max=`, and
+`?ordering=popularity|population|name|cost_index`.
+
+`/api/activities/` supports `?search=`, `?city=`, `?category=`, `?cost_min=`,
+`?cost_max=`, `?duration_max=`, and
+`?ordering=cost|popularity|duration_minutes|name`.
+
+## Tests
+
+```bash
+./venv/Scripts/python.exe manage.py test
+```

@@ -48,10 +48,9 @@ THIRD_PARTY_APPS = [
     "corsheaders",
     "django_filters",
     "drf_spectacular",
-    # STEP 2: add "cities_light" here together with the geo model subclasses
-    # and CITIES_LIGHT_APP_NAME below -- adding it before those models exist
-    # would let `migrate` create cities_light's own tables, which the
-    # CITIES_LIGHT_APP_NAME swap can no longer undo.
+    # Installed for its management commands only; its models are swapped out
+    # into the local "geo" app -- see CITIES_LIGHT_APP_NAME below.
+    "cities_light",
 ]
 
 LOCAL_APPS = [
@@ -106,8 +105,17 @@ DATABASES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# STEP 2: AUTH_USER_MODEL = "accounts.User"
-# Must be set before the first `migrate` -- see the plan's Step 2.
+AUTH_USER_MODEL = "accounts.User"
+
+
+# ------------------------------------------------------------- cities-light
+
+# Country/Region/SubRegion/City live in the local "geo" app so that City can
+# carry cost_index/popularity/blurb/image. Both settings below are required:
+# without MIGRATION_MODULES, `migrate` still applies cities_light's own
+# migrations and creates its tables alongside geo's.
+CITIES_LIGHT_APP_NAME = "geo"
+MIGRATION_MODULES = {"cities_light": None}
 
 
 # --------------------------------------------------------------- auth/password
