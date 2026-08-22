@@ -21,13 +21,28 @@ const tints: Record<Tone, string> = {
   accent: "bg-accent/15",
 };
 
+const textTones: Record<Tone, string> = {
+  neutral: "text-text-muted",
+  success: "text-success",
+  warning: "text-warning",
+  info: "text-info",
+  danger: "text-danger",
+  accent: "text-accent",
+};
+
 type BadgeProps = {
   tone?: Tone;
+  icon?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 };
 
-export function Badge({ tone = "neutral", children, className }: BadgeProps) {
+export function Badge({
+  tone = "neutral",
+  icon,
+  children,
+  className,
+}: BadgeProps) {
   return (
     <span
       className={cn(
@@ -36,7 +51,11 @@ export function Badge({ tone = "neutral", children, className }: BadgeProps) {
         className,
       )}
     >
-      <span className={cn("size-1.5 rounded-full", dots[tone])} />
+      {icon ? (
+        <span className={cn("size-3", textTones[tone])}>{icon}</span>
+      ) : (
+        <span className={cn("size-1.5 rounded-full", dots[tone])} />
+      )}
       {children}
     </span>
   );
@@ -51,9 +70,53 @@ const statusTone: Record<TripStatus, Tone> = {
 
 const statusLabel: Record<TripStatus, string> = {
   ongoing: "Ongoing",
-  upcoming: "Up-coming",
+  upcoming: "Upcoming",
   completed: "Completed",
   cancelled: "Cancelled",
+};
+
+const statusIcon: Record<TripStatus, React.ReactNode> = {
+  ongoing: (
+    <svg
+      viewBox="0 0 12 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="6" cy="6" r="4.5" />
+      <path d="M6 3.5V6l1.8 1.2" />
+    </svg>
+  ),
+  upcoming: (
+    <svg
+      viewBox="0 0 12 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="1.5" y="2.5" width="9" height="8" rx="1.2" />
+      <path d="M1.5 5h9M4 1.5v2M8 1.5v2" />
+    </svg>
+  ),
+  completed: (
+    <svg
+      viewBox="0 0 12 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M2.5 6.3 5 8.8l4.5-5.6" />
+    </svg>
+  ),
 };
 
 export function StatusBadge({
@@ -64,7 +127,7 @@ export function StatusBadge({
   className?: string;
 }) {
   return (
-    <Badge tone={statusTone[status]} className={className}>
+    <Badge tone={statusTone[status]} icon={statusIcon[status]} className={className}>
       {statusLabel[status]}
     </Badge>
   );

@@ -28,8 +28,13 @@ export function TripCard({ trip, href, className }: TripCardProps) {
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/10 transition-colors duration-200 group-hover:from-black/50" />
+<<<<<<< HEAD
         <span className="absolute top-3 left-3 rounded-full bg-surface/90 px-2.5 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur-sm">
           {[trip.city, trip.country].filter(Boolean).join(", ")}
+=======
+        <span className="absolute top-3 left-3 rounded-full bg-surface/95 px-2.5 py-1 text-xs font-medium text-primary shadow-md backdrop-blur-sm">
+          {trip.city}, {trip.country}
+>>>>>>> efc356b54d6cbaeda028aaea0ae9048cdf74cee5
         </span>
       </div>
 

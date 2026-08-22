@@ -1,15 +1,20 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ActivityIcon,
   BellIcon,
   ChartIcon,
   DashboardIcon,
+  LogOutIcon,
   MapPinIcon,
   SearchIcon,
+  SuitcaseIcon,
   UsersIcon,
 } from "@/components/icons";
 import { cn } from "@/lib/cn";
+import { clearAdminAuthed } from "@/lib/admin-auth";
 import { useActiveSection } from "@/lib/use-active-section";
 
 function GlobeMark() {
@@ -29,16 +34,44 @@ function GlobeMark() {
   );
 }
 
+function MenuIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      className="size-5"
+      aria-hidden
+    >
+      {open ? (
+        <path d="m5 5 10 10M15 5 5 15" />
+      ) : (
+        <path d="M3 6h14M3 10h14M3 14h14" />
+      )}
+    </svg>
+  );
+}
+
 const navItems = [
   { id: "overview", label: "Overview", icon: DashboardIcon },
   { id: "cities", label: "Cities", icon: MapPinIcon },
   { id: "activities", label: "Activities", icon: ActivityIcon },
   { id: "analytics", label: "Analytics", icon: ChartIcon },
   { id: "users", label: "Users", icon: UsersIcon },
+  { id: "trips", label: "Trips", icon: SuitcaseIcon },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const activeId = useActiveSection(navItems.map((item) => item.id));
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  function handleLogout() {
+    clearAdminAuthed();
+    router.push("/login");
+  }
 
   return (
     <div className="flex min-h-screen bg-subtle">
@@ -84,35 +117,81 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur sm:gap-4 sm:px-6">
-          <div className="relative max-w-sm flex-1">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-muted" />
-            <input
-              type="search"
-              placeholder="Search anything"
-              aria-label="Search"
-              className="w-full rounded-full border border-border bg-bg py-2 pr-4 pl-9 text-sm placeholder:text-text-muted/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-            />
-          </div>
+        <header className="sticky top-0 z-20 border-b border-border bg-surface/95 backdrop-blur">
+          <div className="flex items-center gap-2 px-4 py-3 sm:gap-4 sm:px-6">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen((current) => !current)}
+              aria-label="Toggle navigation"
+              aria-expanded={mobileNavOpen}
+              className="-ml-1 rounded-lg p-2 text-text-muted transition-colors hover:bg-bg lg:hidden"
+            >
+              <MenuIcon open={mobileNavOpen} />
+            </button>
 
-          <button
-            type="button"
-            className="relative rounded-full p-2 text-text-muted transition-colors hover:bg-bg"
-            aria-label="Notifications"
-          >
-            <BellIcon className="size-5" />
-            <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
-          </button>
-
-          <div className="flex items-center gap-2 border-l border-border pl-3 sm:pl-4">
-            <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-              A
-            </span>
-            <div className="hidden text-sm sm:block">
-              <p className="font-medium">Admin</p>
-              <p className="text-xs text-text-muted">Super admin</p>
+            <div className="relative max-w-sm flex-1">
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-muted" />
+              <input
+                type="search"
+                placeholder="Search anything"
+                aria-label="Search"
+                className="w-full rounded-full border border-border bg-bg py-2 pr-4 pl-9 text-sm placeholder:text-text-muted/70 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+              />
             </div>
+
+            <button
+              type="button"
+              className="relative rounded-full p-2 text-text-muted transition-colors hover:bg-bg"
+              aria-label="Notifications"
+            >
+              <BellIcon className="size-5" />
+              <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-accent" />
+            </button>
+
+            <div className="flex items-center gap-2 border-l border-border pl-3 sm:pl-4">
+              <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                A
+              </span>
+              <div className="hidden text-sm sm:block">
+                <p className="font-medium">Admin</p>
+                <p className="text-xs text-text-muted">Super admin</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label="Log out"
+              className="rounded-full p-2 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+            >
+              <LogOutIcon className="size-5" />
+            </button>
           </div>
+
+          {mobileNavOpen && (
+            <nav className="space-y-1 border-t border-border bg-surface px-4 py-3 lg:hidden">
+              {navItems.map((item) => {
+                const active = item.id === activeId;
+                return (
+                  <a
+                    key={item.id}
+                    href={`#${item.id}`}
+                    onClick={() => setMobileNavOpen(false)}
+                    aria-current={active ? "true" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-primary/8 text-primary"
+                        : "text-text-muted hover:bg-bg hover:text-text",
+                    )}
+                  >
+                    <item.icon className="size-4" />
+                    {item.label}
+                  </a>
+                );
+              })}
+            </nav>
+          )}
         </header>
 
         <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10">

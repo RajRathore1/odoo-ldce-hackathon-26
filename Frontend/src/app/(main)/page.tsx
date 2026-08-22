@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { HomeSummary } from "@/components/home-summary";
 import { LandingExplorer } from "@/components/landing-explorer";
+<<<<<<< HEAD
 import { GlobeMark } from "@/components/navbar";
 import { LoadingBlock } from "@/components/page-state";
 import { buttonStyles } from "@/components/ui/button";
@@ -21,20 +22,31 @@ export default function HomePage() {
   const cities = useApi<CityDto[]>("/cities/popular/?limit=8");
 
   const loading = dashboard.loading || trips.loading || cities.loading;
+=======
+import { buttonStyles } from "@/components/ui/button";
+import { formatMoney } from "@/lib/format";
+import { trips } from "@/lib/mock-data";
+
+export default function HomePage() {
+  const year = new Date().getUTCFullYear();
+  const yearTrips = trips.filter((trip) => trip.startDate.startsWith(`${year}`));
+  const yearBudget = yearTrips.reduce((sum, trip) => sum + trip.budget, 0);
+>>>>>>> efc356b54d6cbaeda028aaea0ae9048cdf74cee5
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       <section className="relative overflow-hidden rounded-3xl bg-primary px-6 py-14 text-white sm:px-12 sm:py-20">
         <Image
           src="https://images.unsplash.com/photo-1482914988630-16b155655e15?fm=jpg&q=80&w=2400&auto=format&fit=crop"
           alt="Mountain range at golden hour"
           fill
           priority
-          className="object-cover [filter:saturate(1.25)_contrast(1.08)_brightness(0.95)]"
+          className="object-cover [filter:saturate(1.1)_contrast(1.05)_brightness(0.85)]"
         />
+        <div aria-hidden className="absolute inset-0 bg-primary/45 mix-blend-multiply" />
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/70 to-primary/10"
+          className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/75 to-primary/25"
         />
         <div
           aria-hidden
@@ -47,8 +59,8 @@ export default function HomePage() {
 
         <div className="relative max-w-2xl">
           <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
-            <GlobeMark className="size-3.5 text-accent" />
-            GlobeTrotter
+            <span className="size-1.5 rounded-full bg-accent" />
+            Trusted by 5,000+ travelers · 12,000+ trips planned
           </p>
 
           <h1 className="mt-5 font-heading text-4xl leading-[1.1] font-semibold sm:text-6xl">
@@ -78,6 +90,7 @@ export default function HomePage() {
         </div>
       </section>
 
+<<<<<<< HEAD
       {loading ? (
         <LoadingBlock label="Loading your dashboard" />
       ) : (
@@ -89,6 +102,22 @@ export default function HomePage() {
           />
         </>
       )}
+=======
+      {yearTrips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface px-5 py-3 text-sm">
+          <span className="text-text-muted">This year:</span>
+          <span className="font-semibold text-primary">
+            {formatMoney(yearBudget)}
+          </span>
+          <span className="text-text-muted">
+            across {yearTrips.length}{" "}
+            {yearTrips.length === 1 ? "trip" : "trips"}
+          </span>
+        </div>
+      )}
+
+      <LandingExplorer />
+>>>>>>> efc356b54d6cbaeda028aaea0ae9048cdf74cee5
     </div>
   );
 }
