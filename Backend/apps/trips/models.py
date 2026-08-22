@@ -15,7 +15,7 @@ from django.db import models
 from django.utils import timezone
 
 from apps.trips.constants import EXPLICIT_STATUSES, TripStatus
-from core.models import BaseModel
+from core.models import BaseModel, OrderedModel
 from core.utils import build_share_url, days_inclusive
 
 
@@ -143,3 +143,138 @@ class Trip(BaseModel):
     def share_url(self) -> str:
         """Frontend link, not an API path. Valid whether or not the trip is public."""
         return build_share_url(self.share_token)
+
+
+class TripStop(BaseModel, OrderedModel):
+    """
+    One city, for one date range, inside a trip. The "sections" of Screen 5.
+
+    ⚠️ **No `UniqueConstraint(trip, order)`** — SQLite has no deferred
+    constraints, so a drag-to-reorder would collide half way through the update
+    (`CLAUDE.md` trap #2). Uniqueness of `order` is maintained by the single
+    `bulk_update` in `services.reorder_stops`, not by the database.
+    """
+
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="stops")
+    city = models.ForeignKey(
+        "geo.City",
+        # PROTECT: a city that somebody's itinerary points at must not be
+        # deletable out from under them.
+        on_delete=models.PROTECT,
+        related_name="trip_stops",
+    )
+
+    # Defaults to the city name — see `services.create_stop`. Editable because
+    # "Bir" and "Bir (paragliding)" are both reasonable section headings.
+    title = models.CharField(max_length=120, blank=True)
+
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    budget = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta(OrderedModel.Meta):
+        # Explicit, because Django would otherwise resolve `Meta` up the MRO to
+        # `BaseModel.Meta` and silently lose the ordering — see `OrderedModel`.
+        abstract = False
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(end_date__gte=models.F("start_date")),
+                name="tripstop_end_date_gte_start_date",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["trip", "order"], name="tripstop_trip_order_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.display_title} ({self.trip_id})"
+
+    @property
+    def display_title(self) -> str:
+        """What the section header shows. Falls back to the city name."""
+        return self.title or (self.city.name if self.city_id else "")
+
+    @property
+    def nights(self) -> int:
+        """
+        Nights, not days — arriving on the 18th and leaving on the 21st is three
+        nights. This is the one place in the project where a range is *not*
+        counted inclusively, because that is what a hotel booking means.
+        """
+        if self.start_date is None or self.end_date is None:
+            return 0
+        return max((self.end_date - self.start_date).days, 0)
+
+
+class TripActivity(BaseModel, OrderedModel):
+    """
+    One activity placed in one trip, on one day.
+
+    Not the same thing as the catalog `activities.Activity`: `cost`, `currency`
+    and `duration_minutes` are **snapshotted** off the catalog row when the
+    activity is added, so editing the catalog later cannot rewrite somebody's
+    saved budget (`CLAUDE.md` trap #5).
+
+    Either it points at a catalog activity **or** it carries a `custom_title` —
+    never both, never neither. Enforced in the serializer for a readable 400,
+    and in the database because a bad row here corrupts the budget.
+    """
+
+    trip_stop = models.ForeignKey(
+        TripStop, on_delete=models.CASCADE, related_name="activities"
+    )
+    activity = models.ForeignKey(
+        "activities.Activity",
+        # PROTECT rather than SET_NULL: nulling the FK on a row that has no
+        # `custom_title` would violate the constraint below, turning a catalog
+        # tidy-up into an IntegrityError instead of a clean refusal.
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="trip_activities",
+    )
+    custom_title = models.CharField(max_length=150, blank=True)
+
+    day_date = models.DateField()
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+
+    cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    currency = models.CharField(max_length=3, default="INR")
+    duration_minutes = models.PositiveIntegerField(null=True, blank=True)
+
+    notes = models.TextField(blank=True)
+
+    class Meta(OrderedModel.Meta):
+        abstract = False
+        constraints = [
+            models.CheckConstraint(
+                check=(models.Q(activity__isnull=False) & models.Q(custom_title=""))
+                | (models.Q(activity__isnull=True) & ~models.Q(custom_title="")),
+                name="tripactivity_catalog_xor_custom",
+            ),
+        ]
+        indexes = [
+            # The itinerary and the calendar both read a whole stop in day order.
+            models.Index(
+                fields=["trip_stop", "day_date", "order"],
+                name="tripactivity_day_order_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.title} on {self.day_date}"
+
+    @property
+    def title(self) -> str:
+        """The catalog name, or the user's own wording for a custom entry."""
+        if self.custom_title:
+            return self.custom_title
+        return self.activity.name if self.activity_id else ""
+
+    @property
+    def activity_type(self) -> str | None:
+        """`None` for a custom entry — there is no catalog row to classify it."""
+        return self.activity.activity_type if self.activity_id else None

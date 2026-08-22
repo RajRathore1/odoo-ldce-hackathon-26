@@ -5,7 +5,10 @@ Thin. Parse the request, call a service or selector, return a response.
 No business rules and no multi-step ORM work.
 """
 
+from django.shortcuts import get_object_or_404
+from django.utils.functional import cached_property
 from drf_spectacular.utils import extend_schema
+from rest_framework import generics
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -13,15 +16,61 @@ from rest_framework.viewsets import ModelViewSet
 
 from apps.trips import selectors, services
 from apps.trips.filters import TripFilterSet
+from apps.trips.models import Trip, TripStop
 from apps.trips.serializers import (
+    ActivityReorderSerializer,
     CoverPhotoSerializer,
+    StopReorderSerializer,
+    TripActivityCreateSerializer,
+    TripActivitySerializer,
+    TripActivityUpdateSerializer,
     TripDetailSerializer,
     TripListSerializer,
+    TripStopSerializer,
+    TripStopWriteSerializer,
     TripWriteSerializer,
 )
 from core.mixins import OwnerQuerysetMixin, SerializerActionMixin
 from core.permissions import IsTripOwner
 from core.response import created, no_content, success
+
+
+class TripScopedMixin:
+    """
+    Resolve `trip_id` from the URL against the caller's **own** trips.
+
+    A stranger's trip id is a 404 rather than a 403, for the same reason the
+    trip list is owner-scoped: there is nothing worth confirming the existence
+    of. Every nested route inherits this, so ownership is checked once, here,
+    instead of in six views.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @cached_property
+    def trip(self) -> Trip:
+        return get_object_or_404(
+            Trip.objects.filter(user=self.request.user), pk=self.kwargs["trip_id"]
+        )
+
+    def get_serializer_context(self) -> dict:
+        return {**super().get_serializer_context(), "trip": self.trip}
+
+
+class StopScopedMixin(TripScopedMixin):
+    """Adds `stop_id`, resolved against the trip that `TripScopedMixin` found."""
+
+    @cached_property
+    def stop(self) -> TripStop:
+        return get_object_or_404(
+            TripStop.objects.filter(trip=self.trip), pk=self.kwargs["stop_id"]
+        )
+
+    def get_serializer_context(self) -> dict:
+        return {**super().get_serializer_context(), "stop": self.stop}
+
+
+# ---------------------------------------------------------------------- trips
 
 
 @extend_schema(tags=["trips"])
@@ -51,6 +100,15 @@ class TripViewSet(OwnerQuerysetMixin, SerializerActionMixin, ModelViewSet):
         "partial_update": TripWriteSerializer,
         "cover_photo": CoverPhotoSerializer,
     }
+
+    #: Actions whose response nests the itinerary, so they need the deep prefetch.
+    DETAIL_ACTIONS = frozenset({"retrieve", "update", "partial_update", "cover_photo"})
+
+    def get_queryset(self):
+        queryset = super().get_queryset()  # owner-scoped by the mixin
+        if self.action in self.DETAIL_ACTIONS:
+            return selectors.with_stop_activities(queryset)
+        return queryset
 
     def _cost_context(self, trips):
         """
@@ -119,3 +177,171 @@ class TripViewSet(OwnerQuerysetMixin, SerializerActionMixin, ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return self._detail_response(trip, message="Cover photo updated.")
+
+
+# ---------------------------------------------------------------------- stops
+
+
+@extend_schema(tags=["trip stops"])
+class TripStopListCreateView(TripScopedMixin, generics.ListCreateAPIView):
+    """`GET|POST /trips/{trip_id}/stops/` — the sections of Screen 5."""
+
+    def get_queryset(self):
+        return selectors.stop_queryset(self.trip)
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return TripStopWriteSerializer
+        return TripStopSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        stop = services.create_stop(trip=self.trip, **serializer.validated_data)
+        return created(
+            data=TripStopSerializer(stop, context=self.get_serializer_context()).data,
+            message="Stop added.",
+        )
+
+
+@extend_schema(tags=["trip stops"])
+class TripStopDetailView(TripScopedMixin, generics.RetrieveUpdateDestroyAPIView):
+    """`GET|PATCH|DELETE /trips/{trip_id}/stops/{id}/`."""
+
+    def get_queryset(self):
+        return selectors.stop_queryset(self.trip)
+
+    def get_serializer_class(self):
+        if self.request.method in ("PATCH", "PUT"):
+            return TripStopWriteSerializer
+        return TripStopSerializer
+
+    def update(self, request, *args, **kwargs):
+        stop = self.get_object()
+        serializer = self.get_serializer(
+            instance=stop, data=request.data, partial=kwargs.pop("partial", False)
+        )
+        serializer.is_valid(raise_exception=True)
+        stop = services.update_stop(stop, **serializer.validated_data)
+        return success(
+            data=TripStopSerializer(stop, context=self.get_serializer_context()).data,
+            message="Stop updated.",
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        services.delete_stop(self.get_object())
+        return no_content()
+
+
+@extend_schema(
+    tags=["trip stops"],
+    summary="Reorder stops",
+    request=StopReorderSerializer,
+    responses={200: TripStopSerializer(many=True)},
+)
+class TripStopReorderView(TripScopedMixin, generics.GenericAPIView):
+    """`POST /trips/{trip_id}/stops/reorder/` — drag-to-reorder, one statement."""
+
+    serializer_class = StopReorderSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.reorder_stops(trip=self.trip, items=serializer.validated_data["items"])
+        # Re-read through the selector so the response carries the joined city
+        # rows rather than lazy-loading one per stop.
+        stops = selectors.stop_queryset(self.trip)
+        return success(
+            data=TripStopSerializer(
+                stops, many=True, context=self.get_serializer_context()
+            ).data,
+            message="Stops reordered.",
+        )
+
+
+# ----------------------------------------------------------- trip activities
+
+
+@extend_schema(tags=["trip activities"])
+class TripActivityListCreateView(StopScopedMixin, generics.ListCreateAPIView):
+    """`GET|POST /trips/{trip_id}/stops/{stop_id}/activities/`."""
+
+    def get_queryset(self):
+        return selectors.stop_activity_queryset(self.stop)
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return TripActivityCreateSerializer
+        return TripActivitySerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        trip_activity = services.create_trip_activity(
+            trip_stop=self.stop, **serializer.validated_data
+        )
+        return created(
+            data=TripActivitySerializer(
+                trip_activity, context=self.get_serializer_context()
+            ).data,
+            message="Activity added.",
+        )
+
+
+@extend_schema(tags=["trip activities"])
+class TripActivityDetailView(OwnerQuerysetMixin, generics.RetrieveUpdateDestroyAPIView):
+    """
+    `GET|PATCH|DELETE /trip-activities/{id}/`.
+
+    Flat on purpose: calendar drag-and-drop moves an item between days *and*
+    stops, so a nested URL would encode a parent that is about to change.
+    """
+
+    queryset = selectors.trip_activity_queryset()
+    owner_field = "trip_stop__trip__user"
+    permission_classes = [IsAuthenticated, IsTripOwner]
+
+    def get_serializer_class(self):
+        if self.request.method in ("PATCH", "PUT"):
+            return TripActivityUpdateSerializer
+        return TripActivitySerializer
+
+    def update(self, request, *args, **kwargs):
+        trip_activity = self.get_object()
+        serializer = self.get_serializer(
+            instance=trip_activity, data=request.data, partial=kwargs.pop("partial", False)
+        )
+        serializer.is_valid(raise_exception=True)
+        trip_activity = services.update_trip_activity(
+            trip_activity, **serializer.validated_data
+        )
+        return success(
+            data=TripActivitySerializer(trip_activity).data, message="Activity updated."
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        services.delete_trip_activity(self.get_object())
+        return no_content()
+
+
+@extend_schema(
+    tags=["trip activities"],
+    summary="Reorder activities, and move them between days or stops",
+    request=ActivityReorderSerializer,
+    responses={200: TripActivitySerializer(many=True)},
+)
+class TripActivityReorderView(TripScopedMixin, generics.GenericAPIView):
+    """`POST /trips/{trip_id}/activities/reorder/`."""
+
+    serializer_class = ActivityReorderSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        activities = services.reorder_trip_activities(
+            trip=self.trip, items=serializer.validated_data["items"]
+        )
+        return success(
+            data=TripActivitySerializer(activities, many=True).data,
+            message="Activities reordered.",
+        )

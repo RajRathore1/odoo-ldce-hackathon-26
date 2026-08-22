@@ -4,24 +4,270 @@ trips — serializers. Owner: Dev A.
 Validation and shaping only. No cross-model writes, no calls into other apps.
 
 Read and write shapes are **separate classes** — `TripListSerializer` is not
-`TripCreateSerializer` with a `context` flag. One serializer that branches on
+`TripWriteSerializer` with a `context` flag. One serializer that branches on
 context is how a write field ends up readable on a public endpoint.
+
+Ordered inner-most first: activities, then stops, then the trip that nests
+them, so every nested serializer is a real reference rather than a lazy lookup.
 """
 
 from rest_framework import serializers
 
-from apps.trips.models import Trip
+from apps.geo.serializers import CityMiniSerializer
+from apps.trips.models import Trip, TripActivity, TripStop
 from apps.trips.selectors import ZERO_COST_SUMMARY
 
 
-def _stops(trip):
-    """
-    The trip's prefetched stops, or `None` when there is no relation to read.
+def _validate_times(start_time, end_time) -> None:
+    """`end_time` after `start_time`, when both are given."""
+    if start_time and end_time and end_time <= start_time:
+        raise serializers.ValidationError(
+            {"end_time": "End time must be after the start time."}
+        )
 
-    `getattr` rather than `trip.stops` because this module is written against
-    both A3 (no `TripStop` table yet) and A4 (stops prefetched by the selector).
+
+# ------------------------------------------------------------ trip activities
+
+
+class TripActivitySerializer(serializers.ModelSerializer):
     """
-    return getattr(trip, "stops", None)
+    One activity as it sits in an itinerary.
+
+    `title` and `activity_type` come off the model's properties, which read the
+    catalog row for a linked activity and fall back to the user's own wording
+    for a custom entry. Needs `select_related("activity")` upstream.
+    """
+
+    title = serializers.CharField(read_only=True)
+    activity_id = serializers.IntegerField(read_only=True)
+    activity_type = serializers.CharField(read_only=True, allow_null=True)
+
+    class Meta:
+        model = TripActivity
+        fields = (
+            "id",
+            "trip_stop",
+            "title",
+            "activity_id",
+            "activity_type",
+            "day_date",
+            "start_time",
+            "end_time",
+            "duration_minutes",
+            "cost",
+            "currency",
+            "order",
+            "notes",
+        )
+
+
+class TripActivityCreateSerializer(serializers.ModelSerializer):
+    """
+    `POST /trips/{id}/stops/{sid}/activities/`.
+
+    `currency` is not accepted: a trip has one currency and its children inherit
+    it (`CLAUDE.md` §4). Taking the catalog row's currency instead would let one
+    trip hold two of them, and the budget sums children without converting.
+
+    `cost` is optional — when it is omitted and `activity` is given, the service
+    snapshots it off the catalog.
+    """
+
+    class Meta:
+        model = TripActivity
+        fields = (
+            "activity",
+            "custom_title",
+            "day_date",
+            "start_time",
+            "end_time",
+            "cost",
+            "duration_minutes",
+            "notes",
+        )
+
+    def validate(self, attrs: dict) -> dict:
+        activity = attrs.get("activity")
+        custom_title = (attrs.get("custom_title") or "").strip()
+
+        if bool(activity) == bool(custom_title):
+            raise serializers.ValidationError(
+                {
+                    "custom_title": (
+                        "Provide either `activity` (a catalog id) or `custom_title`, "
+                        "not both and not neither."
+                    )
+                }
+            )
+        attrs["custom_title"] = custom_title
+
+        stop = self.context["stop"]
+        if not stop.start_date <= attrs["day_date"] <= stop.end_date:
+            raise serializers.ValidationError(
+                {
+                    "day_date": (
+                        f"This day is outside the stop's dates "
+                        f"({stop.start_date} to {stop.end_date})."
+                    )
+                }
+            )
+        _validate_times(attrs.get("start_time"), attrs.get("end_time"))
+        return attrs
+
+
+class TripActivityUpdateSerializer(serializers.ModelSerializer):
+    """
+    `PATCH /trip-activities/{id}/` — time, cost, day and order.
+
+    `activity` and `custom_title` are deliberately absent: swapping one for the
+    other is a different activity, and allowing it here is how a row ends up
+    with both or neither and trips the database constraint.
+    """
+
+    class Meta:
+        model = TripActivity
+        fields = (
+            "day_date",
+            "start_time",
+            "end_time",
+            "cost",
+            "duration_minutes",
+            "order",
+            "notes",
+        )
+
+    def validate(self, attrs: dict) -> dict:
+        stop = self.instance.trip_stop
+        day_date = attrs.get("day_date", self.instance.day_date)
+
+        if not stop.start_date <= day_date <= stop.end_date:
+            raise serializers.ValidationError(
+                {
+                    "day_date": (
+                        f"This day is outside the stop's dates "
+                        f"({stop.start_date} to {stop.end_date}). Use the reorder "
+                        f"endpoint to move an activity to another stop."
+                    )
+                }
+            )
+        _validate_times(
+            attrs.get("start_time", self.instance.start_time),
+            attrs.get("end_time", self.instance.end_time),
+        )
+        return attrs
+
+
+# ---------------------------------------------------------------------- stops
+
+
+class TripStopSerializer(serializers.ModelSerializer):
+    """One section of Screen 5. `title` falls back to the city name."""
+
+    title = serializers.CharField(source="display_title", read_only=True)
+    city = CityMiniSerializer(read_only=True)
+    nights = serializers.IntegerField(read_only=True)
+    activities_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TripStop
+        fields = (
+            "id",
+            "title",
+            "city",
+            "start_date",
+            "end_date",
+            "nights",
+            "order",
+            "budget",
+            "activities_count",
+            "notes",
+        )
+
+    def get_activities_count(self, stop) -> int:
+        """The selector's annotation, or the prefetch — never a query per row."""
+        annotated = getattr(stop, "activities_count", None)
+        if annotated is not None:
+            return annotated
+        return len(stop.activities.all())
+
+
+class TripStopWithActivitiesSerializer(TripStopSerializer):
+    """The stop as it appears nested in `GET /trips/{id}/`."""
+
+    activities = TripActivitySerializer(many=True, read_only=True)
+
+    class Meta(TripStopSerializer.Meta):
+        fields = (*TripStopSerializer.Meta.fields, "activities")
+
+
+class TripStopWriteSerializer(serializers.ModelSerializer):
+    """
+    `POST /trips/{id}/stops/` and `PATCH /trips/{id}/stops/{sid}/`.
+
+    `order` is not accepted — it is assigned server-side on create and changed
+    only through the reorder endpoint, which is the one place that can keep the
+    whole sequence consistent in a single statement.
+    """
+
+    class Meta:
+        model = TripStop
+        fields = ("city", "title", "start_date", "end_date", "budget", "notes")
+
+    def validate(self, attrs: dict) -> dict:
+        """The stop's range has to sit inside the trip's range."""
+        trip = self.context["trip"]
+        start_date = attrs.get("start_date") or getattr(self.instance, "start_date", None)
+        end_date = attrs.get("end_date") or getattr(self.instance, "end_date", None)
+
+        if end_date < start_date:
+            raise serializers.ValidationError(
+                {"end_date": "End date must be on or after the start date."}
+            )
+        if start_date < trip.start_date or end_date > trip.end_date:
+            raise serializers.ValidationError(
+                {
+                    "start_date": (
+                        f"A stop must sit inside the trip's dates "
+                        f"({trip.start_date} to {trip.end_date})."
+                    )
+                }
+            )
+        return attrs
+
+
+# -------------------------------------------------------------------- reorder
+
+
+class StopReorderItemSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    order = serializers.IntegerField(min_value=1)
+
+
+class StopReorderSerializer(serializers.Serializer):
+    """`POST /trips/{id}/stops/reorder/` — `{"items": [{"id": 91, "order": 1}]}`."""
+
+    items = StopReorderItemSerializer(many=True, allow_empty=False)
+
+
+class ActivityReorderItemSerializer(serializers.Serializer):
+    """
+    `trip_stop` and `day_date` are optional: dragging inside one day sends
+    neither, dragging onto another day or another stop sends what changed.
+    """
+
+    id = serializers.IntegerField()
+    order = serializers.IntegerField(min_value=1)
+    day_date = serializers.DateField(required=False)
+    trip_stop = serializers.IntegerField(required=False)
+
+
+class ActivityReorderSerializer(serializers.Serializer):
+    """`POST /trips/{id}/activities/reorder/` — also moves across days and stops."""
+
+    items = ActivityReorderItemSerializer(many=True, allow_empty=False)
+
+
+# ---------------------------------------------------------------------- trips
 
 
 class TripListSerializer(serializers.ModelSerializer):
@@ -78,19 +324,15 @@ class TripListSerializer(serializers.ModelSerializer):
         annotations with `setattr`, which a property with no setter rejects),
         and two ways to derive one number is how screens start disagreeing.
         """
-        stops = _stops(trip)
-        return 0 if stops is None else len(stops.all())
+        return len(trip.stops.all())
 
     def get_activities_count(self, trip) -> int:
-        """From the selector's annotation. 0 until task A4 adds it."""
+        """From the selector's annotation."""
         return getattr(trip, "activities_count", 0)
 
     def get_cities(self, trip) -> list[str]:
         """City names in stop order — the "Bir · Manali · Kasol" line on a card."""
-        stops = _stops(trip)
-        if stops is None:
-            return []
-        return [stop.city.name for stop in stops.all() if stop.city_id]
+        return [stop.city.name for stop in trip.stops.all() if stop.city_id]
 
     def get_estimated_cost(self, trip) -> str:
         """Money as a string, like every other amount in the API."""
@@ -104,10 +346,12 @@ class TripDetailSerializer(TripListSerializer):
     """
     `GET /trips/{id}/`, and the body returned after a create or an update.
 
-    Adds the fields only the owner has any use for. `share_token` is here and
-    **not** on the list: a list is a page of tokens, which is a page of live
-    share links, and nothing on Screen 6 needs them.
+    Adds the nested itinerary and the fields only the owner has any use for.
+    `share_token` is here and **not** on the list: a list is a page of tokens,
+    which is a page of live share links, and nothing on Screen 6 needs them.
     """
+
+    stops = TripStopWithActivitiesSerializer(many=True, read_only=True)
 
     class Meta(TripListSerializer.Meta):
         fields = (
@@ -115,6 +359,7 @@ class TripDetailSerializer(TripListSerializer):
             "share_token",
             "views_count",
             "copied_from",
+            "stops",
             "updated_at",
         )
 

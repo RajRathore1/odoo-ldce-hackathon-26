@@ -5,9 +5,12 @@ from datetime import date, timedelta
 import pytest
 from django.db.utils import IntegrityError
 
+from apps.activities.constants import ActivityType
+from apps.activities.tests.factories import ActivityFactory
+from apps.geo.tests.factories import CityFactory
 from apps.trips.constants import TripStatus
-from apps.trips.models import Trip
-from apps.trips.tests.factories import TripFactory
+from apps.trips.models import Trip, TripStop
+from apps.trips.tests.factories import TripActivityFactory, TripFactory, TripStopFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -140,3 +143,77 @@ class TestSoftDelete:
         assert not Trip.objects.filter(pk=trip.pk).exists()
         assert Trip.all_objects.filter(pk=trip.pk).exists()
         assert Trip.all_objects.get(pk=trip.pk).is_deleted is True
+
+
+class TestTripStop:
+    def test_nights_are_counted_between_the_dates_not_inclusively(self):
+        """Arrive on the 18th, leave on the 21st: three nights, four days."""
+        stop = TripStopFactory(
+            start_date=date(2026, 8, 18),
+            end_date=date(2026, 8, 21),
+            trip=TripFactory(start_date=date(2026, 8, 18), end_date=date(2026, 8, 27)),
+        )
+        assert stop.nights == 3
+
+    def test_a_single_day_stop_is_zero_nights(self):
+        trip = TripFactory(start_date=date(2026, 8, 18), end_date=date(2026, 8, 27))
+        stop = TripStopFactory(
+            trip=trip, start_date=date(2026, 8, 18), end_date=date(2026, 8, 18)
+        )
+        assert stop.nights == 0
+
+    def test_display_title_falls_back_to_the_city_name(self):
+        stop = TripStopFactory(title="", city=CityFactory(name="Bir"))
+        assert stop.display_title == "Bir"
+
+    def test_display_title_prefers_an_explicit_title(self):
+        stop = TripStopFactory(title="Paragliding week", city=CityFactory(name="Bir"))
+        assert stop.display_title == "Paragliding week"
+
+    def test_end_before_start_is_rejected_by_the_database(self):
+        with pytest.raises(IntegrityError):
+            TripStopFactory(
+                start_date=TODAY + timedelta(days=33), end_date=TODAY + timedelta(days=30)
+            )
+
+    def test_two_stops_may_share_an_order_value(self):
+        """
+        Trap #2: there is no `UniqueConstraint(trip, order)`, because a reorder
+        would violate it mid-update on SQLite.
+        """
+        trip = TripFactory()
+        TripStopFactory(trip=trip, order=1)
+        assert TripStopFactory(trip=trip, order=1)
+
+    def test_stops_are_ordered_by_order(self):
+        """`Meta(OrderedModel.Meta)` — the ordering must survive the MRO."""
+        trip = TripFactory()
+        third = TripStopFactory(trip=trip, order=3)
+        first = TripStopFactory(trip=trip, order=1)
+        assert list(TripStop.objects.filter(trip=trip)) == [first, third]
+
+
+class TestTripActivity:
+    def test_title_comes_from_the_catalog_for_a_linked_activity(self):
+        activity = ActivityFactory(name="Paragliding at Bir Billing")
+        trip_activity = TripActivityFactory(activity=activity, custom_title="")
+        assert trip_activity.title == "Paragliding at Bir Billing"
+
+    def test_title_is_the_users_own_wording_for_a_custom_entry(self):
+        assert TripActivityFactory(custom_title="Coffee with Ana").title == "Coffee with Ana"
+
+    def test_activity_type_is_null_for_a_custom_entry(self):
+        assert TripActivityFactory(custom_title="Wander around").activity_type is None
+
+    def test_activity_type_comes_from_the_catalog(self):
+        activity = ActivityFactory(activity_type=ActivityType.ADVENTURE)
+        trip_activity = TripActivityFactory(activity=activity, custom_title="")
+        assert trip_activity.activity_type == ActivityType.ADVENTURE
+
+    def test_neither_a_catalog_row_nor_a_title_is_rejected(self):
+        with pytest.raises(IntegrityError):
+            TripActivityFactory(activity=None, custom_title="")
+
+    def test_both_a_catalog_row_and_a_title_is_rejected(self):
+        with pytest.raises(IntegrityError):
+            TripActivityFactory(activity=ActivityFactory(), custom_title="Both")
