@@ -94,7 +94,7 @@ export function LandingExplorer({ trips }: { trips: Trip[] }) {
                     {bucket.label}
                   </h3>
                 )}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
                   {bucket.trips.map((trip) => (
                     <TripCard
                       key={trip.id}

@@ -33,3 +33,24 @@ export type Suggestion = {
   label: string;
   kind: "place" | "activity";
 };
+
+export type ItineraryActivity = {
+  id: string;
+  activity: string;
+  expense: number;
+};
+
+export type ItineraryDay = {
+  day: number;
+  activities: ItineraryActivity[];
+};
+
+export type CommunityPost = {
+  id: string;
+  author: string;
+  place: string;
+  content: string;
+  likes: number;
+  postedAt: string;
+  image?: string;
+};

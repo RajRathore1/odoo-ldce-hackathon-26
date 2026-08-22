@@ -24,7 +24,7 @@ export function TripCard({ trip, href, className }: TripCardProps) {
           src={trip.image}
           alt={trip.title}
           fill
-          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+          sizes="(min-width: 1024px) 40vw, (min-width: 640px) 60vw, 100vw"
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/10 transition-colors duration-200 group-hover:from-black/50" />

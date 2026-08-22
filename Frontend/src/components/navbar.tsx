@@ -11,6 +11,7 @@ const links = [
   { href: "/", label: "Home" },
   { href: "/trips", label: "My Trips" },
   { href: "/explore", label: "Explore" },
+  { href: "/community", label: "Community" },
   { href: "/calendar", label: "Calendar" },
 ];
 
