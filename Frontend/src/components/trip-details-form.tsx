@@ -120,21 +120,27 @@ export function TripDetailsForm() {
           description="Tap to add places to visit or activities to perform — fine-tune each one in the next step."
         />
         <div className="flex flex-wrap gap-2">
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion.id}
-              type="button"
-              onClick={() => toggleSuggestion(suggestion.id, suggestion.label)}
-              className={cn(
-                "rounded-full border px-4 py-2 text-sm font-medium transition-colors",
-                added.has(suggestion.id)
-                  ? "border-primary bg-primary text-white"
-                  : "border-border bg-surface text-text hover:border-primary/30",
-              )}
-            >
-              {suggestion.label}
-            </button>
-          ))}
+          {suggestions.map((suggestion) => {
+            const isAdded = added.has(suggestion.id);
+            return (
+              <button
+                key={suggestion.id}
+                type="button"
+                onClick={() =>
+                  toggleSuggestion(suggestion.id, suggestion.label)
+                }
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-all active:scale-[0.97]",
+                  isAdded
+                    ? "border-primary bg-primary text-white shadow-sm"
+                    : "border-border bg-surface text-text hover:border-primary/30 hover:shadow-sm",
+                )}
+              >
+                {isAdded && <CheckIcon />}
+                {suggestion.label}
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -149,9 +155,9 @@ export function TripDetailsForm() {
             {sections.map((section, index) => (
               <div
                 key={section.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3"
+                className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 shadow-sm transition-shadow hover:shadow-md"
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-bg text-sm font-semibold text-text-muted">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                   {index + 1}
                 </span>
                 <input
@@ -166,7 +172,7 @@ export function TripDetailsForm() {
                   type="button"
                   onClick={() => removeSection(section.id)}
                   aria-label="Remove section"
-                  className="shrink-0 text-text-muted hover:text-danger"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                 >
                   <CloseIcon />
                 </button>
@@ -186,7 +192,8 @@ export function TripDetailsForm() {
           className="mt-4"
           onClick={addBlankSection}
         >
-          + Add another section
+          <PlusIcon />
+          Add another section
         </Button>
       </section>
 
@@ -211,6 +218,39 @@ function CloseIcon() {
       aria-hidden
     >
       <path d="m5 5 10 10M15 5 5 15" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3.5"
+      aria-hidden
+    >
+      <path d="M3 8.5 6 11.5 13 4.5" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      className="size-4"
+      aria-hidden
+    >
+      <path d="M8 3v10M3 8h10" />
     </svg>
   );
 }

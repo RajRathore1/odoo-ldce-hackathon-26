@@ -83,7 +83,8 @@ export default function ItineraryBuilderPage() {
       </div>
 
       <Button type="button" variant="outline" onClick={addSection}>
-        + Add another section
+        <PlusIcon />
+        Add another section
       </Button>
 
       <div className="flex items-center justify-between rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
@@ -99,5 +100,21 @@ export default function ItineraryBuilderPage() {
         </Button>
       </div>
     </form>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      className="size-4"
+      aria-hidden
+    >
+      <path d="M8 3v10M3 8h10" />
+    </svg>
   );
 }
