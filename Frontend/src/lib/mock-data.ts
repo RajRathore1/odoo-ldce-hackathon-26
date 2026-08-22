@@ -1,4 +1,4 @@
-import type { Region, Trip } from "@/lib/types";
+import type { Region, Suggestion, Trip } from "@/lib/types";
 
 export const regions: Region[] = [
   {
@@ -118,6 +118,17 @@ export const trips: Trip[] = [
     status: "completed",
     cover: "ocean",
   },
+];
+
+export const suggestions: Suggestion[] = [
+  { id: "old-town-walk", label: "Old town walking tour", kind: "activity" },
+  { id: "sunset-viewpoint", label: "Sunset viewpoint", kind: "place" },
+  { id: "local-food-market", label: "Local food market", kind: "place" },
+  { id: "heritage-museum", label: "Heritage museum", kind: "activity" },
+  { id: "evening-boat-ride", label: "Evening boat ride", kind: "activity" },
+  { id: "nearby-hiking-trail", label: "Nearby hiking trail", kind: "place" },
+  { id: "street-food-crawl", label: "Street food crawl", kind: "activity" },
+  { id: "sunrise-viewpoint", label: "Sunrise viewpoint", kind: "place" },
 ];
 
 export const tripsByStatus = {

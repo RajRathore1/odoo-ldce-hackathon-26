@@ -29,3 +29,9 @@ export type SelectOption = {
   label: string;
   value: string;
 };
+
+export type Suggestion = {
+  id: string;
+  label: string;
+  kind: "place" | "activity";
+};
