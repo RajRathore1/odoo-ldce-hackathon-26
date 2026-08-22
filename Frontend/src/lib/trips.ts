@@ -4,7 +4,7 @@ import type { SelectOption, Trip, TripStatus } from "@/lib/types";
 export const statusFilters: SelectOption[] = [
   { label: "All trips", value: "all" },
   { label: "Ongoing", value: "ongoing" },
-  { label: "Up-coming", value: "upcoming" },
+  { label: "Upcoming", value: "upcoming" },
   { label: "Completed", value: "completed" },
 ];
 
@@ -58,7 +58,7 @@ export function sortTrips(trips: Trip[], order: string) {
 
 const statusLabels: Record<TripStatus, string> = {
   ongoing: "Ongoing",
-  upcoming: "Up-coming",
+  upcoming: "Upcoming",
   completed: "Completed",
 };
 

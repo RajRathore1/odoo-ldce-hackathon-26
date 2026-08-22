@@ -213,7 +213,7 @@ export function CalendarView() {
           <span className="size-1.5 rounded-full bg-warning" /> Ongoing
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-info" /> Up-coming
+          <span className="size-1.5 rounded-full bg-info" /> Upcoming
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="size-1.5 rounded-full bg-success" /> Completed

@@ -16,7 +16,7 @@ import type { TripStatus } from "@/lib/types";
 
 const statusGroups: { key: TripStatus; label: string; dot: string }[] = [
   { key: "ongoing", label: "Ongoing", dot: "bg-warning" },
-  { key: "upcoming", label: "Up-coming", dot: "bg-info" },
+  { key: "upcoming", label: "Upcoming", dot: "bg-info" },
   { key: "completed", label: "Completed", dot: "bg-success" },
 ];
 
