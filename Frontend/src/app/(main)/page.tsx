@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { LandingExplorer } from "@/components/landing-explorer";
+import { GlobeMark } from "@/components/navbar";
 import { buttonStyles } from "@/components/ui/button";
 
 export default function HomePage() {
@@ -12,20 +13,28 @@ export default function HomePage() {
           alt="Mountain range at golden hour"
           fill
           priority
-          className="object-cover"
+          className="object-cover [filter:saturate(1.25)_contrast(1.08)_brightness(0.95)]"
         />
         <div
           aria-hidden
-          className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/75 to-primary/30"
+          className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/70 to-primary/10"
         />
         <div
           aria-hidden
-          className="absolute -top-24 -right-16 size-96 rounded-full bg-accent/20 blur-3xl"
+          className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10"
+        />
+        <div
+          aria-hidden
+          className="absolute -top-24 -right-10 size-96 rounded-full bg-accent/30 blur-3xl mix-blend-screen"
+        />
+        <div
+          aria-hidden
+          className="absolute right-0 bottom-0 h-64 w-80 translate-x-1/4 translate-y-1/4 rounded-full bg-warning/20 blur-3xl mix-blend-screen"
         />
 
         <div className="relative max-w-2xl">
-          <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium">
-            <span className="size-1.5 rounded-full bg-accent" />
+          <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm">
+            <GlobeMark className="size-3.5 text-accent" />
             GlobeTrotter
           </p>
 
