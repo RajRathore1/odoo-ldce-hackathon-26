@@ -151,6 +151,7 @@ def platform_cost_totals() -> dict:
         "grand_total": activities_cost + expenses_cost,
     }
 
+
 def trip_budget_breakdown(trip: Trip) -> dict:
     """
     The whole Screen 9 payload: buckets, per-stop, per-day and alerts.

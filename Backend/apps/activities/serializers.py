@@ -56,3 +56,62 @@ class ActivitySerializer(serializers.ModelSerializer):
             "popularity_score",
             "image_url",
         )
+
+
+# ---------------------------------------------------------------------- admin
+
+
+class AdminActivityCategorySerializer(serializers.ModelSerializer):
+    """`/admin/activity-categories/` — the read shape, made writable."""
+
+    class Meta:
+        model = ActivityCategory
+        fields = (
+            "id",
+            "name",
+            "slug",
+            "icon",
+            "description",
+            "is_active",
+            "is_deleted",
+            "created_at",
+        )
+        read_only_fields = ("is_deleted", "created_at")
+
+
+class AdminActivitySerializer(serializers.ModelSerializer):
+    """
+    `/admin/activities/` — full CRUD over the catalog.
+
+    ⚠️ Editing `cost` here changes **only** the catalog. Every `TripActivity`
+    already added keeps its snapshot, by design (trap #5): a curator fixing a
+    price must not silently rewrite budgets users have already seen.
+
+    `popularity_score` is read-only — it is a counter, not a field.
+    """
+
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    city_name = serializers.CharField(source="city.name", read_only=True, default=None)
+
+    class Meta:
+        model = Activity
+        fields = (
+            "id",
+            "city",
+            "city_name",
+            "category",
+            "category_name",
+            "name",
+            "description",
+            "activity_type",
+            "cost",
+            "currency",
+            "duration_minutes",
+            "rating",
+            "image_url",
+            "popularity_score",
+            "is_active",
+            "is_deleted",
+            "created_at",
+        )
+        read_only_fields = ("popularity_score", "is_deleted", "created_at")

@@ -8,16 +8,26 @@ No business rules and no multi-step ORM work.
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
+from rest_framework.viewsets import ModelViewSet
 
 from apps.geo import selectors, services
-from apps.geo.filters import CityFilterSet, CountryFilterSet
+from apps.geo.filters import (
+    AdminCityFilterSet,
+    AdminCountryFilterSet,
+    CityFilterSet,
+    CountryFilterSet,
+)
+from apps.geo.models import City, Country
 from apps.geo.serializers import (
+    AdminCitySerializer,
+    AdminCountrySerializer,
     CityDetailSerializer,
     CityListSerializer,
     CountrySerializer,
     SavedDestinationSerializer,
     SavedDestinationWriteSerializer,
 )
+from core.mixins import AdminOnlyMixin, UnfilteredObjectMixin
 from core.pagination import LargePagination
 from core.response import created, no_content, success
 
@@ -168,3 +178,41 @@ class SavedDestinationDestroyView(generics.DestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         services.remove_saved_destination(self.get_object())
         return no_content()
+
+
+# ---------------------------------------------------------------------- admin
+
+
+@extend_schema(tags=["admin-master-data"])
+class AdminCountryViewSet(AdminOnlyMixin, UnfilteredObjectMixin, ModelViewSet):
+    """
+    `/admin/countries/` — full CRUD.
+
+    Reads `all_objects` so a soft-deleted country is visible and restorable;
+    `?include_deleted=true` reveals them. Delete is soft, which matters here:
+    `City.country` is `PROTECT`, so hard-deleting a country in use would be
+    refused outright.
+    """
+
+    serializer_class = AdminCountrySerializer
+    filterset_class = AdminCountryFilterSet
+    search_fields = ("name", "iso2", "iso3")
+    ordering_fields = ("name", "region", "created_at")
+    ordering = ("name",)
+
+    def get_queryset(self):
+        return Country.all_objects.all()
+
+
+@extend_schema(tags=["admin-master-data"])
+class AdminCityViewSet(AdminOnlyMixin, UnfilteredObjectMixin, ModelViewSet):
+    """`/admin/cities/` — full CRUD."""
+
+    serializer_class = AdminCitySerializer
+    filterset_class = AdminCityFilterSet
+    search_fields = ("name", "state", "country__name")
+    ordering_fields = ("name", "popularity_score", "cost_index", "created_at")
+    ordering = ("name",)
+
+    def get_queryset(self):
+        return City.all_objects.select_related("country")

@@ -135,3 +135,68 @@ class SavedDestinationWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = SavedDestination
         fields = ("city", "note")
+
+
+# ---------------------------------------------------------------------- admin
+
+
+class AdminCountrySerializer(serializers.ModelSerializer):
+    """
+    `/admin/countries/` — the same fields as the read serializer, **writable**.
+
+    The user-facing `CountrySerializer` has no write path at all, which is the
+    point of the split: exposing writes is an admin decision, not a flag on a
+    shared class.
+    """
+
+    class Meta:
+        model = Country
+        fields = (
+            "id",
+            "name",
+            "iso2",
+            "iso3",
+            "region",
+            "currency_code",
+            "flag_emoji",
+            "is_active",
+            "is_deleted",
+            "created_at",
+        )
+        read_only_fields = ("is_deleted", "created_at")
+
+
+class AdminCitySerializer(serializers.ModelSerializer):
+    """
+    `/admin/cities/`.
+
+    `popularity_score` is read-only even here: it is a denormalised counter
+    maintained by `trips.services.create_stop` and rebuilt by
+    `manage.py recalc_popularity`. Letting an admin type over it would make the
+    "popular destinations" list disagree with the trips behind it.
+    """
+
+    country_name = serializers.CharField(source="country.name", read_only=True)
+
+    class Meta:
+        model = City
+        fields = (
+            "id",
+            "country",
+            "country_name",
+            "name",
+            "state",
+            "latitude",
+            "longitude",
+            "timezone",
+            "cost_index",
+            "avg_daily_cost",
+            "currency",
+            "description",
+            "image_url",
+            "popularity_score",
+            "is_active",
+            "is_deleted",
+            "created_at",
+        )
+        read_only_fields = ("popularity_score", "is_deleted", "created_at")

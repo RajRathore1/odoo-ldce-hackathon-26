@@ -7,10 +7,22 @@ No business rules and no multi-step ORM work.
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics
+from rest_framework.viewsets import ModelViewSet
 
 from apps.activities import selectors
-from apps.activities.filters import ActivityFilterSet
-from apps.activities.serializers import ActivityCategorySerializer, ActivitySerializer
+from apps.activities.filters import (
+    ActivityFilterSet,
+    AdminActivityCategoryFilterSet,
+    AdminActivityFilterSet,
+)
+from apps.activities.models import Activity, ActivityCategory
+from apps.activities.serializers import (
+    ActivityCategorySerializer,
+    ActivitySerializer,
+    AdminActivityCategorySerializer,
+    AdminActivitySerializer,
+)
+from core.mixins import AdminOnlyMixin, UnfilteredObjectMixin
 from core.pagination import LargePagination
 
 DEFAULT_POPULAR_LIMIT = 10
@@ -98,3 +110,40 @@ class PopularActivityListView(generics.ListAPIView):
         except (TypeError, ValueError):
             return DEFAULT_POPULAR_LIMIT
         return max(1, min(limit, MAX_POPULAR_LIMIT))
+
+
+# ---------------------------------------------------------------------- admin
+
+
+@extend_schema(tags=["admin-master-data"])
+class AdminActivityCategoryViewSet(AdminOnlyMixin, UnfilteredObjectMixin, ModelViewSet):
+    """
+    `/admin/activity-categories/` — full CRUD.
+
+    Delete is soft, which is what makes it safe: `Activity.category` is
+    `SET_NULL`, so a hard delete would quietly orphan every activity in the
+    category.
+    """
+
+    serializer_class = AdminActivityCategorySerializer
+    filterset_class = AdminActivityCategoryFilterSet
+    search_fields = ("name", "slug")
+    ordering_fields = ("name", "created_at")
+    ordering = ("name",)
+
+    def get_queryset(self):
+        return ActivityCategory.all_objects.all()
+
+
+@extend_schema(tags=["admin-master-data"])
+class AdminActivityViewSet(AdminOnlyMixin, UnfilteredObjectMixin, ModelViewSet):
+    """`/admin/activities/` — full CRUD over the catalog."""
+
+    serializer_class = AdminActivitySerializer
+    filterset_class = AdminActivityFilterSet
+    search_fields = ("name", "description", "city__name")
+    ordering_fields = ("name", "cost", "rating", "popularity_score", "created_at")
+    ordering = ("-popularity_score", "name")
+
+    def get_queryset(self):
+        return Activity.all_objects.select_related("category", "city", "city__country")

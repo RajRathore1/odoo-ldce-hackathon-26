@@ -573,3 +573,57 @@ class PublicTripSerializer(serializers.Serializer):
     views_count = serializers.IntegerField(read_only=True)
     days = ItineraryDaySerializer(many=True, read_only=True)
     totals = ItineraryTotalsSerializer(read_only=True)
+
+
+# ---------------------------------------------------------------------- admin
+
+
+class AdminTripSerializer(serializers.ModelSerializer):
+    """
+    One row of `GET /admin/trips/` — trip moderation.
+
+    Carries the owner's email and the deleted flag, neither of which appears on
+    any user-facing trip shape. That is the reason the admin tree has its own
+    serializers: a moderation view is a different consumer, not the same one
+    with a flag set.
+    """
+
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    user_id = serializers.IntegerField(read_only=True)
+    duration_days = serializers.IntegerField(read_only=True)
+    stops_count = serializers.SerializerMethodField()
+    activities_count = serializers.SerializerMethodField()
+    estimated_cost = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Trip
+        fields = (
+            "id",
+            "name",
+            "user_id",
+            "user_email",
+            "status",
+            "start_date",
+            "end_date",
+            "duration_days",
+            "stops_count",
+            "activities_count",
+            "total_budget",
+            "estimated_cost",
+            "currency",
+            "is_public",
+            "views_count",
+            "is_deleted",
+            "created_at",
+        )
+
+    def get_stops_count(self, trip) -> int:
+        return len(trip.stops.all())
+
+    def get_activities_count(self, trip) -> int:
+        return getattr(trip, "activities_count", 0)
+
+    def get_estimated_cost(self, trip) -> str:
+        """From the page-wide bulk lookup — the same formula the user sees."""
+        summary = self.context.get("cost_summaries", {}).get(trip.pk)
+        return str(summary["grand_total"]) if summary else "0.00"

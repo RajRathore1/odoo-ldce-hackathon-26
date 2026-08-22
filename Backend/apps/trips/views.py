@@ -15,10 +15,11 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
 from apps.trips import selectors, services
-from apps.trips.filters import TripFilterSet
+from apps.trips.filters import AdminTripFilterSet, TripFilterSet
 from apps.trips.models import Trip, TripStop
 from apps.trips.serializers import (
     ActivityReorderSerializer,
+    AdminTripSerializer,
     CoverPhotoSerializer,
     ItinerarySerializer,
     PublicTripSerializer,
@@ -34,7 +35,12 @@ from apps.trips.serializers import (
     TripStopWriteSerializer,
     TripWriteSerializer,
 )
-from core.mixins import OwnerQuerysetMixin, SerializerActionMixin
+from core.mixins import (
+    AdminOnlyMixin,
+    OwnerQuerysetMixin,
+    SerializerActionMixin,
+    UnfilteredObjectMixin,
+)
 from core.permissions import IsTripOwner
 from core.response import created, no_content, success
 
@@ -532,3 +538,102 @@ class PublicTripCopyView(generics.GenericAPIView):
             ).data,
             message="Trip copied to your account.",
         )
+
+
+# ---------------------------------------------------------------------- admin
+
+
+class AdminTripCostMixin:
+    """
+    Serialize a page of trips with **one** bulk cost lookup.
+
+    Shared by the two admin trip lists so neither of them reaches for
+    `trip_cost_summary` per row, which is what turns a moderation table into a
+    hundred queries.
+    """
+
+    def paginated_trips(self, queryset):
+        page = self.paginate_queryset(queryset)
+        serializer = AdminTripSerializer(
+            page,
+            many=True,
+            context={
+                "request": self.request,
+                "cost_summaries": selectors.cost_summaries_for([trip.pk for trip in page]),
+            },
+        )
+        return self.get_paginated_response(serializer.data)
+
+
+@extend_schema(tags=["admin-trips"])
+class AdminTripListView(AdminOnlyMixin, AdminTripCostMixin, generics.ListAPIView):
+    """`GET /admin/trips/` — every trip on the platform."""
+
+    serializer_class = AdminTripSerializer
+    filterset_class = AdminTripFilterSet
+    search_fields = ("name", "description", "user__email")
+    ordering_fields = ("created_at", "start_date", "views_count")
+    ordering = ("-created_at",)
+
+    def get_queryset(self):
+        return selectors.admin_trip_queryset()
+
+    def list(self, request, *args, **kwargs):
+        return self.paginated_trips(self.filter_queryset(self.get_queryset()))
+
+
+@extend_schema(tags=["admin-trips"])
+class AdminTripDetailView(
+    AdminOnlyMixin, UnfilteredObjectMixin, generics.RetrieveDestroyAPIView
+):
+    """
+    `GET|DELETE /admin/trips/{id}/`.
+
+    No `PATCH`: a moderator removes a trip, they do not rewrite somebody's
+    itinerary. Delete is soft, so the row stays available to analytics and can be
+    restored from `/django-admin/` if it was a mistake.
+    """
+
+    serializer_class = AdminTripSerializer
+
+    def get_queryset(self):
+        return selectors.admin_trip_queryset()
+
+    def retrieve(self, request, *args, **kwargs):
+        trip = self.get_object()
+        return success(
+            data=AdminTripSerializer(
+                trip,
+                context={
+                    "request": request,
+                    "cost_summaries": selectors.cost_summaries_for([trip.pk]),
+                },
+            ).data
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        services.delete_trip(self.get_object())
+        return no_content()
+
+
+@extend_schema(tags=["admin-users"], summary="One user's trips")
+class AdminUserTripListView(AdminOnlyMixin, AdminTripCostMixin, generics.ListAPIView):
+    """
+    `GET /admin/users/{user_id}/trips/`.
+
+    Lives in `trips`, not `accounts`, even though the URL says `users`: it
+    serves trips, and `accounts` may not import `trips` (`LAYOUT.md` §5). The URL
+    prefix and the owning app are allowed to differ — `SavedDestination` does the
+    same thing in reverse.
+    """
+
+    serializer_class = AdminTripSerializer
+    filterset_class = AdminTripFilterSet
+    ordering_fields = ("created_at", "start_date")
+    ordering = ("-created_at",)
+
+    def get_queryset(self):
+        return selectors.admin_trip_queryset().filter(user_id=self.kwargs["user_id"])
+
+    def list(self, request, *args, **kwargs):
+        return self.paginated_trips(self.filter_queryset(self.get_queryset()))

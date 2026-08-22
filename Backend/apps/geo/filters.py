@@ -8,6 +8,7 @@ geo — filters. Owner: models: Dev A · endpoints: Dev B.
 from django_filters import rest_framework as filters
 
 from apps.geo.models import City, Country
+from core.filters import SoftDeleteFilterMixin
 
 
 class CityFilterSet(filters.FilterSet):
@@ -36,3 +37,23 @@ class CountryFilterSet(filters.FilterSet):
     class Meta:
         model = Country
         fields = ("region", "is_active")
+
+
+class AdminCountryFilterSet(SoftDeleteFilterMixin):
+    """`GET /admin/countries/` — adds `?include_deleted=`."""
+
+    region = filters.CharFilter(lookup_expr="iexact")
+
+    class Meta:
+        model = Country
+        fields = ("region", "is_active", "include_deleted")
+
+
+class AdminCityFilterSet(SoftDeleteFilterMixin):
+    """`GET /admin/cities/` — adds `?include_deleted=`."""
+
+    region = filters.CharFilter(field_name="country__region", lookup_expr="iexact")
+
+    class Meta:
+        model = City
+        fields = ("country", "region", "is_active", "include_deleted")

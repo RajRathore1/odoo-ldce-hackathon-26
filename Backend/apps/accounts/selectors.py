@@ -7,6 +7,8 @@ READ layer: querysets, `annotate`, `aggregate`, `select_related` /
 
 from decimal import Decimal
 
+from django.db.models import Count, Q
+
 from apps.accounts.models import User
 
 
@@ -47,3 +49,22 @@ def user_stats(user: User) -> dict:
         "total_planned_spend": Decimal("0.00"),
         "currency": user.currency,
     }
+
+
+def admin_user_queryset():
+    """
+    `GET /admin/users/` — the moderation table.
+
+    Reads `all_objects`, unlike every user-facing queryset: an admin has to be
+    able to see a soft-deleted account in order to restore it. The list still
+    hides them by default — `core.filters.SoftDeleteFilterMixin` gives the
+    moderator `?include_deleted=true` when they want them.
+
+    `trips_count` is filtered to live trips: a join does not go through the
+    soft-delete manager, so without it a deleted trip keeps counting.
+    """
+    return (
+        User.all_objects.select_related("city", "country")
+        .annotate(trips_count=Count("trips", filter=Q(trips__is_deleted=False)))
+        .order_by("-created_at")
+    )

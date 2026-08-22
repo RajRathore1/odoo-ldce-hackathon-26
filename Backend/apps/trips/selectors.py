@@ -248,9 +248,7 @@ def trip_groups(queryset, group_by: str) -> list[dict]:
     grouped = Trip.objects.filter(pk__in=queryset.values("pk"))
 
     if group_by == "status":
-        counts = dict(
-            grouped.values_list("status").annotate(total=Count("pk", distinct=True))
-        )
+        counts = dict(grouped.values_list("status").annotate(total=Count("pk", distinct=True)))
         labels = dict(TripStatus.choices)
         return [
             {"key": status, "label": labels[status], "count": counts[status]}
@@ -296,3 +294,30 @@ def trip_groups(queryset, group_by: str) -> list[dict]:
         ]
 
     return []
+
+
+def admin_trip_queryset():
+    """
+    `GET /admin/trips/` — trip moderation.
+
+    Reads `all_objects` so a moderator can see soft-deleted trips with
+    `?include_deleted=true`; the list hides them by default. Otherwise the same
+    joins as the user-facing list, so the two report identical numbers.
+    """
+    return (
+        Trip.all_objects.select_related("user")
+        .prefetch_related(
+            Prefetch(
+                "stops",
+                queryset=TripStop.objects.select_related("city").order_by("order"),
+            )
+        )
+        .annotate(
+            activities_count=Count(
+                "stops__activities",
+                filter=Q(stops__is_deleted=False, stops__activities__is_deleted=False),
+                distinct=True,
+            )
+        )
+        .order_by("-created_at")
+    )

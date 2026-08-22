@@ -7,8 +7,8 @@ activities — filters. Owner: Dev A (models) · Dev B (endpoints).
 
 from django_filters import rest_framework as filters
 
-from apps.activities.models import Activity
-from core.filters import CharInFilter, NumberInFilter
+from apps.activities.models import Activity, ActivityCategory
+from core.filters import CharInFilter, NumberInFilter, SoftDeleteFilterMixin
 
 
 class ActivityFilterSet(filters.FilterSet):
@@ -40,4 +40,30 @@ class ActivityFilterSet(filters.FilterSet):
             "min_duration",
             "max_duration",
             "is_active",
+        )
+
+
+class AdminActivityCategoryFilterSet(SoftDeleteFilterMixin):
+    """`GET /admin/activity-categories/` — adds `?include_deleted=`."""
+
+    class Meta:
+        model = ActivityCategory
+        fields = ("is_active", "include_deleted")
+
+
+class AdminActivityFilterSet(SoftDeleteFilterMixin):
+    """`GET /admin/activities/` — the curator's view of the catalog."""
+
+    activity_type = CharInFilter(field_name="activity_type", lookup_expr="in")
+    country = NumberInFilter(field_name="city__country", lookup_expr="in")
+
+    class Meta:
+        model = Activity
+        fields = (
+            "city",
+            "country",
+            "category",
+            "activity_type",
+            "is_active",
+            "include_deleted",
         )

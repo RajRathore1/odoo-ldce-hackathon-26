@@ -19,6 +19,7 @@ from apps.accounts.models import User
 
 # --------------------------------------------------------------------- nested
 
+
 class CityBriefSerializer(serializers.Serializer):
     """
     The `{id, name}` shape `API.md` nests inside a user payload.
@@ -41,6 +42,7 @@ class CountryBriefSerializer(serializers.Serializer):
 
 
 # ----------------------------------------------------------------------- read
+
 
 class UserSerializer(serializers.ModelSerializer):
     """Full profile. `GET /users/me/` and the `user` key in auth responses."""
@@ -86,11 +88,10 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
 # ---------------------------------------------------------------------- write
 
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, style={"input_type": "password"})
-    confirm_password = serializers.CharField(
-        write_only=True, style={"input_type": "password"}
-    )
+    confirm_password = serializers.CharField(write_only=True, style={"input_type": "password"})
 
     class Meta:
         model = User
@@ -209,13 +210,9 @@ class AvatarSerializer(serializers.ModelSerializer):
 class PasswordChangeSerializer(serializers.Serializer):
     """`POST /auth/password/change/` — logged in, knows the old password."""
 
-    current_password = serializers.CharField(
-        write_only=True, style={"input_type": "password"}
-    )
+    current_password = serializers.CharField(write_only=True, style={"input_type": "password"})
     password = serializers.CharField(write_only=True, style={"input_type": "password"})
-    confirm_password = serializers.CharField(
-        write_only=True, style={"input_type": "password"}
-    )
+    confirm_password = serializers.CharField(write_only=True, style={"input_type": "password"})
 
     def validate_current_password(self, value: str) -> str:
         if not self.context["request"].user.check_password(value):
@@ -248,9 +245,7 @@ class PasswordResetSerializer(serializers.Serializer):
 
     token = serializers.CharField()
     password = serializers.CharField(write_only=True, style={"input_type": "password"})
-    confirm_password = serializers.CharField(
-        write_only=True, style={"input_type": "password"}
-    )
+    confirm_password = serializers.CharField(write_only=True, style={"input_type": "password"})
 
     def validate(self, attrs: dict) -> dict:
         if attrs["password"] != attrs["confirm_password"]:
@@ -267,6 +262,7 @@ class LogoutSerializer(serializers.Serializer):
 
 # -------------------------------------------------------------------- helpers
 
+
 def _run_password_validators(password: str, user=None) -> None:
     """
     Bridge Django's `AUTH_PASSWORD_VALIDATORS` into DRF's error shape.
@@ -282,6 +278,7 @@ def _run_password_validators(password: str, user=None) -> None:
 
 
 # ---------------------------------------------------------------------- admin
+
 
 class AdminLoginSerializer(LoginSerializer):
     """
@@ -312,9 +309,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
     full_name = serializers.CharField(read_only=True)
     city_name = serializers.CharField(source="city.name", read_only=True, default=None)
-    country_name = serializers.CharField(
-        source="country.name", read_only=True, default=None
-    )
+    country_name = serializers.CharField(source="country.name", read_only=True, default=None)
     trips_count = serializers.SerializerMethodField()
     posts_count = serializers.SerializerMethodField()
 
