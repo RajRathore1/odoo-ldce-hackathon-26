@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { SearchIcon } from "@/components/icons";
+import { updateAdminUserActive } from "@/lib/admin-api";
 import { cn } from "@/lib/cn";
 import type { AdminUser } from "@/lib/mock-data";
 
@@ -54,6 +55,13 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
     const current = overrides[user.id] ?? user.status;
     const next = current === "active" ? "suspended" : "active";
     setOverrides((prev) => ({ ...prev, [user.id]: next }));
+
+    const numericId = Number(user.id);
+    if (!Number.isNaN(numericId)) {
+      updateAdminUserActive(numericId, next === "active").catch(() => {
+        setOverrides((prev) => ({ ...prev, [user.id]: current }));
+      });
+    }
   }
 
   const effectiveUsers = useMemo(

@@ -15,13 +15,15 @@ import { RankingList } from "@/components/ranking-list";
 import { StatCard } from "@/components/stat-card";
 import { TrendBarChart } from "@/components/trend-bar-chart";
 import { UsersTable } from "@/components/users-table";
+import { fetchAdminUsers } from "@/lib/admin-api";
 import { cn } from "@/lib/cn";
 import {
   activityCategory,
   dashboardByPeriod,
   periods,
   staticStats,
-  users,
+  users as mockUsers,
+  type AdminUser,
   type Period,
 } from "@/lib/mock-data";
 
@@ -57,6 +59,25 @@ export function AdminDashboard() {
   const [secondsAgo, setSecondsAgo] = useState(0);
   const [country, setCountry] = useState("all");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
+  const [liveUsers, setLiveUsers] = useState<AdminUser[] | null>(null);
+
+  useEffect(() => {
+    fetchAdminUsers()
+      .then((result) => {
+        setLiveUsers(
+          result.results.map((user) => ({
+            id: String(user.id),
+            name: user.full_name || user.email,
+            email: user.email,
+            city: user.city_name ?? user.country_name ?? "—",
+            trips: user.trips_count,
+            joined: user.created_at.slice(0, 10),
+            status: user.is_active ? "active" : "suspended",
+          })),
+        );
+      })
+      .catch(() => setLiveUsers(null));
+  }, []);
 
   useEffect(() => {
     const bumpTimer = window.setInterval(() => {
@@ -304,7 +325,7 @@ export function AdminDashboard() {
           title="Manage users"
           description="Search, sort, filter and moderate accounts."
         >
-          <UsersTable users={users} />
+          <UsersTable users={liveUsers ?? mockUsers} />
         </PanelCard>
       </div>
     </div>
