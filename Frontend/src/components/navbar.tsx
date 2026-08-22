@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
+import { useAuth } from "@/components/auth-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Button, buttonStyles } from "@/components/ui/button";
 
@@ -19,7 +20,7 @@ type NavUser = { name: string; avatar: string | null };
 
 export function GlobalTrotterNavbar({ user }: { user: NavUser }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const { signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -28,9 +29,7 @@ export function GlobalTrotterNavbar({ user }: { user: NavUser }) {
 
   async function handleSignOut() {
     setSigningOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
-    router.refresh();
+    await signOut();
   }
 
   return (

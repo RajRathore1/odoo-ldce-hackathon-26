@@ -6,13 +6,15 @@ import { AuthCard } from "@/components/auth-card";
 import { FormAlert } from "@/components/form-alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
-import { SubmitError, postJson } from "@/lib/api/browser";
+import { useAuth } from "@/components/auth-provider";
+import { ApiError } from "@/lib/api/envelope";
 
 type Errors = Partial<Record<"email" | "password", string>>;
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
@@ -34,13 +36,14 @@ function LoginForm() {
     setSubmitting(true);
 
     try {
-      await postJson("/api/auth/login", { email, password });
+      await signIn(email, password);
       router.replace(params.get("next") ?? "/");
-      router.refresh();
     } catch (error) {
-      if (error instanceof SubmitError) {
+      if (error instanceof ApiError) {
         setAlert(error.message);
         setErrors(error.fields);
+      } else {
+        setAlert("Could not reach the server. Try again in a moment.");
       }
       setSubmitting(false);
     }

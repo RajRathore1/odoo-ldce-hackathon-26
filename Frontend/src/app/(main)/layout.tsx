@@ -1,17 +1,30 @@
-import { redirect } from "next/navigation";
-import { GlobalTrotterNavbar } from "@/components/navbar";
-import { getCurrentUser } from "@/lib/api/session";
+"use client";
 
-export default async function MainLayout({
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useAuth } from "@/components/auth-provider";
+import { GlobalTrotterNavbar } from "@/components/navbar";
+import { Spinner } from "@/components/page-state";
+
+export default function MainLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const router = useRouter();
+  const { user, loading } = useAuth();
 
-  // proxy.ts already gates these routes; this catches a refresh token that the
-  // backend has since rejected.
-  if (!user) redirect("/login");
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login");
+  }, [loading, user, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Spinner className="size-6" />
+      </div>
+    );
+  }
 
   return (
     <>

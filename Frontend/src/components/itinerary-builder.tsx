@@ -8,7 +8,8 @@ import {
   type ItinerarySectionData,
 } from "@/components/itinerary-section";
 import { Button } from "@/components/ui/button";
-import { SubmitError, postJson } from "@/lib/api/browser";
+import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/envelope";
 import { formatMoney } from "@/lib/format";
 import type { SelectOption } from "@/lib/types";
 
@@ -92,19 +93,27 @@ export function ItineraryBuilder({
     setSaving(true);
 
     try {
-      await postJson(`/api/trips/${tripId}/stops`, {
-        stops: sections.map((section) => ({
-          city: Number(section.cityId),
-          start_date: section.startDate,
-          end_date: section.endDate,
-          title: section.description,
-          budget: section.budget || undefined,
-        })),
-      });
+      // Order is assigned server-side as max(order) + 1, so post them in turn
+      // to keep the sections in the order the user arranged them.
+      for (const section of sections) {
+        await api(`/trips/${tripId}/stops/`, {
+          method: "POST",
+          body: {
+            city: Number(section.cityId),
+            start_date: section.startDate,
+            end_date: section.endDate,
+            title: section.description,
+            budget: section.budget || undefined,
+          },
+        });
+      }
       router.push(`/trips/${tripId}`);
-      router.refresh();
     } catch (error) {
-      if (error instanceof SubmitError) setAlert(error.message);
+      setAlert(
+        error instanceof ApiError
+          ? error.message
+          : "Could not reach the server.",
+      );
       setSaving(false);
     }
   }

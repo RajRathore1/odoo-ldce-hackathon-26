@@ -1,7 +1,3 @@
-import type { Paginated } from "@/lib/api/trips-service";
-
-export type { Paginated };
-
 export const expenseCategories = [
   { label: "Transport", value: "TRANSPORT" },
   { label: "Stay", value: "STAY" },

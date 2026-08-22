@@ -1,9 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { postJson } from "@/lib/api/browser";
+import { api } from "@/lib/api/client";
+import type { SavedDestinationDto } from "@/lib/api/geo-service";
 
 type SaveDestinationButtonProps = {
   cityId: number;
@@ -14,7 +14,6 @@ export function SaveDestinationButton({
   cityId,
   savedId,
 }: SaveDestinationButtonProps) {
-  const router = useRouter();
   const [saved, setSaved] = useState<number | null>(savedId);
   const [busy, setBusy] = useState(false);
 
@@ -23,16 +22,17 @@ export function SaveDestinationButton({
 
     try {
       if (saved === null) {
-        const { saved: row } = await postJson<{ saved: { id: number } }>(
-          "/api/saved-destinations",
-          { city: cityId },
+        const row = await api<SavedDestinationDto>(
+          "/users/me/saved-destinations/",
+          { method: "POST", body: { city: cityId } },
         );
         setSaved(row.id);
       } else {
-        await fetch(`/api/saved-destinations/${saved}`, { method: "DELETE" });
+        await api(`/users/me/saved-destinations/${saved}/`, {
+          method: "DELETE",
+        });
         setSaved(null);
       }
-      router.refresh();
     } finally {
       setBusy(false);
     }

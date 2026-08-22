@@ -1,33 +1,39 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useAuth } from "@/components/auth-provider";
+import { ErrorBlock, LoadingBlock } from "@/components/page-state";
 import { ProfileForm } from "@/components/profile-form";
 import { SectionHeader } from "@/components/section-header";
 import { TripCard } from "@/components/trip-card";
-import { listCities, listCountries } from "@/lib/api/geo-service";
-import { apiFetch, getCurrentUser } from "@/lib/api/session";
-import { listTrips } from "@/lib/api/trips-service";
+import { toTrip } from "@/lib/api/adapters";
+import type { CityDto, CountryDto } from "@/lib/api/geo-service";
+import type { Paginated, TripDto } from "@/lib/api/trips-service";
+import { useApi } from "@/lib/api/use-api";
 
 type Stats = {
   total_trips: number;
-  ongoing: number;
   upcoming: number;
   completed: number;
   cities_visited: number;
-  countries_visited: number;
 };
 
-export default async function ProfilePage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
+export default function ProfilePage() {
+  const { user, refreshUser } = useAuth();
+  const stats = useApi<Stats>("/users/me/stats/");
+  const countries = useApi<Paginated<CountryDto>>("/countries/?page_size=100");
+  const cities = useApi<Paginated<CityDto>>("/cities/?page_size=100");
+  const trips = useApi<Paginated<TripDto>>("/trips/?page_size=100");
 
-  const [countries, cities, trips, stats] = await Promise.all([
-    listCountries(),
-    listCities(),
-    listTrips(),
-    apiFetch<Stats>("/users/me/stats/"),
-  ]);
+  if (!user || countries.loading || cities.loading) {
+    return <LoadingBlock label="Loading your profile" />;
+  }
+  if (countries.error) {
+    return <ErrorBlock message={countries.error} onRetry={countries.reload} />;
+  }
 
-  const preplanned = trips.filter((trip) => trip.status === "upcoming");
-  const previous = trips.filter((trip) => trip.status !== "upcoming");
+  const rows = (trips.data?.results ?? []).map(toTrip);
+  const preplanned = rows.filter((trip) => trip.status === "upcoming");
+  const previous = rows.filter((trip) => trip.status !== "upcoming");
 
   return (
     <div className="space-y-10">
@@ -41,22 +47,25 @@ export default async function ProfilePage() {
         </p>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Trips" value={stats.total_trips} />
-        <Stat label="Up-coming" value={stats.upcoming} />
-        <Stat label="Completed" value={stats.completed} />
-        <Stat label="Cities visited" value={stats.cities_visited} />
-      </dl>
+      {stats.data && (
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Trips" value={stats.data.total_trips} />
+          <Stat label="Up-coming" value={stats.data.upcoming} />
+          <Stat label="Completed" value={stats.data.completed} />
+          <Stat label="Cities visited" value={stats.data.cities_visited} />
+        </dl>
+      )}
 
       <ProfileForm
         user={user}
-        countries={countries.map((country) => ({
+        onSaved={refreshUser}
+        countries={(countries.data?.results ?? []).map((country) => ({
           label: country.name,
           value: String(country.id),
         }))}
-        cities={cities.map((city) => ({
-          label: `${city.name}, ${city.country}`,
-          value: city.id,
+        cities={(cities.data?.results ?? []).map((city) => ({
+          label: `${city.name}, ${city.country.name}`,
+          value: String(city.id),
         }))}
       />
 

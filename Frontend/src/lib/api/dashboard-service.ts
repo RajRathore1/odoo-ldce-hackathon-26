@@ -1,5 +1,3 @@
-import { apiFetch } from "@/lib/api/session";
-
 export type DashboardDto = {
   user: { first_name: string; avatar: string | null };
   counts: {
@@ -43,7 +41,3 @@ export type DashboardDto = {
     over_budget_trips: number;
   };
 };
-
-export function getDashboard() {
-  return apiFetch<DashboardDto>("/dashboard/");
-}

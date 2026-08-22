@@ -7,7 +7,8 @@ import { FormAlert } from "@/components/form-alert";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/field";
-import { SubmitError, postJson } from "@/lib/api/browser";
+import { useAuth } from "@/components/auth-provider";
+import { ApiError } from "@/lib/api/envelope";
 
 const countries = [
   "India",
@@ -63,6 +64,7 @@ function validate(form: Form): Errors {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { signUp } = useAuth();
   const [form, setForm] = useState<Form>(emptyForm);
   const [photo, setPhoto] = useState<string | null>(null);
   const [errors, setErrors] = useState<Errors>({});
@@ -94,7 +96,7 @@ export default function RegisterPage() {
     setSubmitting(true);
 
     try {
-      await postJson("/api/auth/register", {
+      await signUp({
         email: form.email,
         password: form.password,
         confirm_password: form.confirmPassword,
@@ -104,9 +106,8 @@ export default function RegisterPage() {
         additional_info: form.about,
       });
       router.replace("/");
-      router.refresh();
     } catch (error) {
-      if (error instanceof SubmitError) {
+      if (error instanceof ApiError) {
         setAlert(error.message);
         const mapped: Errors = {};
         for (const [key, message] of Object.entries(error.fields)) {
@@ -114,6 +115,8 @@ export default function RegisterPage() {
           if (target) mapped[target] = message;
         }
         setErrors(mapped);
+      } else {
+        setAlert("Could not reach the server. Try again in a moment.");
       }
       setSubmitting(false);
     }

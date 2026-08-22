@@ -1,22 +1,26 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { LandingExplorer } from "@/components/landing-explorer";
 import { HomeSummary } from "@/components/home-summary";
-import { getDashboard } from "@/lib/api/dashboard-service";
-import { popularCities } from "@/lib/api/geo-service";
-import { listTrips } from "@/lib/api/trips-service";
+import { LandingExplorer } from "@/components/landing-explorer";
 import { GlobeMark } from "@/components/navbar";
+import { LoadingBlock } from "@/components/page-state";
 import { buttonStyles } from "@/components/ui/button";
+import { toRegion, toTrip } from "@/lib/api/adapters";
+import type { DashboardDto } from "@/lib/api/dashboard-service";
+import type { CityDto } from "@/lib/api/geo-service";
+import type { Paginated, TripDto } from "@/lib/api/trips-service";
+import { useApi } from "@/lib/api/use-api";
 
-export default async function HomePage() {
-  // /dashboard/ carries the counts, the live trip and the budget roll-up in
-  // one call. The two card rows still come from their own endpoints because the
-  // dashboard trims cities and costs off those rows.
-  const [dashboard, trips, regions] = await Promise.all([
-    getDashboard(),
-    listTrips(),
-    popularCities(),
-  ]);
+export default function HomePage() {
+  // Three separate calls on purpose: /dashboard/ carries the counts and the
+  // budget roll-up, but trims cities and costs off the rows the cards need.
+  const dashboard = useApi<DashboardDto>("/dashboard/");
+  const trips = useApi<Paginated<TripDto>>("/trips/?page_size=100");
+  const cities = useApi<CityDto[]>("/cities/popular/?limit=8");
+
+  const loading = dashboard.loading || trips.loading || cities.loading;
 
   return (
     <div className="space-y-12">
@@ -39,10 +43,6 @@ export default async function HomePage() {
         <div
           aria-hidden
           className="absolute -top-24 -right-10 size-96 rounded-full bg-accent/30 blur-3xl mix-blend-screen"
-        />
-        <div
-          aria-hidden
-          className="absolute right-0 bottom-0 h-64 w-80 translate-x-1/4 translate-y-1/4 rounded-full bg-warning/20 blur-3xl mix-blend-screen"
         />
 
         <div className="relative max-w-2xl">
@@ -78,9 +78,17 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <HomeSummary dashboard={dashboard} />
-
-      <LandingExplorer trips={trips} regions={regions} />
+      {loading ? (
+        <LoadingBlock label="Loading your dashboard" />
+      ) : (
+        <>
+          {dashboard.data && <HomeSummary dashboard={dashboard.data} />}
+          <LandingExplorer
+            trips={(trips.data?.results ?? []).map(toTrip)}
+            regions={(cities.data ?? []).map(toRegion)}
+          />
+        </>
+      )}
     </div>
   );
 }

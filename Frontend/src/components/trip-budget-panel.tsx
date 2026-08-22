@@ -1,13 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FormAlert } from "@/components/form-alert";
 import { SectionHeader } from "@/components/section-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
-import { SubmitError, postJson } from "@/lib/api/browser";
+import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/envelope";
 import type { BudgetDto, ExpenseDto } from "@/lib/api/budget-types";
 import { expenseCategories } from "@/lib/api/budget-types";
 import { cn } from "@/lib/cn";
@@ -21,6 +21,7 @@ type TripBudgetPanelProps = {
   stops: SelectOption[];
   tripStart: string;
   tripEnd: string;
+  onChanged: () => void;
 };
 
 export function TripBudgetPanel({
@@ -30,8 +31,8 @@ export function TripBudgetPanel({
   stops,
   tripStart,
   tripEnd,
+  onChanged,
 }: TripBudgetPanelProps) {
-  const router = useRouter();
   const currency = budget.currency;
   const [open, setOpen] = useState(false);
   const [alert, setAlert] = useState<string | null>(null);
@@ -59,12 +60,15 @@ export function TripBudgetPanel({
     setSaving(true);
 
     try {
-      await postJson(`/api/trips/${tripId}/expenses`, {
-        category: form.category,
-        title: form.title,
-        amount: form.amount,
-        trip_stop: form.trip_stop ? Number(form.trip_stop) : null,
-        incurred_on: form.incurred_on || null,
+      await api(`/trips/${tripId}/expenses/`, {
+        method: "POST",
+        body: {
+          category: form.category,
+          title: form.title,
+          amount: form.amount,
+          trip_stop: form.trip_stop ? Number(form.trip_stop) : null,
+          incurred_on: form.incurred_on || null,
+        },
       });
       setForm({
         category: "STAY",
@@ -74,17 +78,21 @@ export function TripBudgetPanel({
         incurred_on: "",
       });
       setOpen(false);
-      router.refresh();
+      onChanged();
     } catch (error) {
-      if (error instanceof SubmitError) setAlert(error.message);
+      setAlert(
+        error instanceof ApiError
+          ? error.message
+          : "Could not reach the server.",
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function removeExpense(id: number) {
-    await fetch(`/api/trips/${tripId}/expenses/${id}`, { method: "DELETE" });
-    router.refresh();
+    await api(`/trips/${tripId}/expenses/${id}/`, { method: "DELETE" });
+    onChanged();
   }
 
   return (

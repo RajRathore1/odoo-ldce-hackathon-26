@@ -5,7 +5,9 @@ import { FormAlert } from "@/components/form-alert";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/field";
-import { SubmitError, postJson } from "@/lib/api/browser";
+import { api, apiUrl } from "@/lib/api/client";
+import { ApiError, readEnvelope } from "@/lib/api/envelope";
+import { readTokens } from "@/lib/api/tokens";
 import type { AuthUser } from "@/lib/api/types";
 import type { SelectOption } from "@/lib/types";
 
@@ -13,6 +15,7 @@ type ProfileFormProps = {
   user: AuthUser;
   countries: SelectOption[];
   cities: SelectOption[];
+  onSaved: () => Promise<void>;
 };
 
 // Backend field names mapped onto our inputs.
@@ -25,7 +28,12 @@ const backendFields: Record<string, string> = {
   country: "country",
 };
 
-export function ProfileForm({ user, countries, cities }: ProfileFormProps) {
+export function ProfileForm({
+  user,
+  countries,
+  cities,
+  onSaved,
+}: ProfileFormProps) {
   const [profile, setProfile] = useState({
     firstName: user.first_name,
     lastName: user.last_name,
@@ -58,17 +66,21 @@ export function ProfileForm({ user, countries, cities }: ProfileFormProps) {
     const form = new FormData();
     form.append("avatar", file);
 
+    // Multipart, so it goes straight to fetch rather than the JSON helper.
     try {
-      const response = await fetch("/api/profile", {
+      const response = await fetch(apiUrl("/users/me/avatar/"), {
         method: "POST",
+        headers: { Authorization: `Bearer ${readTokens().access ?? ""}` },
         body: form,
       });
-      if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        setAlert(body?.message ?? "Could not upload that photo.");
-      }
-    } catch {
-      setAlert("Could not upload that photo.");
+      await readEnvelope(response);
+      await onSaved();
+    } catch (error) {
+      setAlert(
+        error instanceof ApiError
+          ? error.message
+          : "Could not upload that photo.",
+      );
     }
   }
 
@@ -79,17 +91,21 @@ export function ProfileForm({ user, countries, cities }: ProfileFormProps) {
     setSaving(true);
 
     try {
-      await postJson("/api/profile", {
-        first_name: profile.firstName,
-        last_name: profile.lastName,
-        phone_number: profile.phone,
-        additional_info: profile.about,
-        city: profile.city ? Number(profile.city) : null,
-        country: profile.country ? Number(profile.country) : null,
+      await api("/users/me/", {
+        method: "PATCH",
+        body: {
+          first_name: profile.firstName,
+          last_name: profile.lastName,
+          phone_number: profile.phone,
+          additional_info: profile.about,
+          city: profile.city ? Number(profile.city) : null,
+          country: profile.country ? Number(profile.country) : null,
+        },
       });
+      await onSaved();
       setSaved(true);
     } catch (error) {
-      if (error instanceof SubmitError) {
+      if (error instanceof ApiError) {
         setAlert(error.message);
         const mapped: Record<string, string> = {};
         for (const [key, message] of Object.entries(error.fields)) {
@@ -97,6 +113,8 @@ export function ProfileForm({ user, countries, cities }: ProfileFormProps) {
           if (target) mapped[target] = message;
         }
         setErrors(mapped);
+      } else {
+        setAlert("Could not reach the server.");
       }
     } finally {
       setSaving(false);

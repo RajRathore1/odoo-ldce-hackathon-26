@@ -7,7 +7,8 @@ import { FormAlert } from "@/components/form-alert";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { SectionHeader } from "@/components/section-header";
-import { SubmitError, getJson, postJson } from "@/lib/api/browser";
+import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/envelope";
 import type { Region, SelectOption } from "@/lib/types";
 
 type Section = { id: string; label: string };
@@ -46,9 +47,15 @@ export function TripDetailsForm({ cities }: { cities: Region[] }) {
 
     let active = true;
 
-    getJson<{ activities: Suggestion[] }>(`/api/activities?city=${placeId}`)
-      .then((data) => {
-        if (active) setLoaded({ cityId: placeId, items: data.activities });
+    api<{ id: number; name: string }[]>(
+      `/activities/popular/?city=${placeId}&limit=12`,
+    )
+      .then((rows) => {
+        if (!active) return;
+        setLoaded({
+          cityId: placeId,
+          items: rows.map((row) => ({ id: String(row.id), label: row.name })),
+        });
       })
       .catch(() => {
         if (active) setLoaded({ cityId: placeId, items: [] });
@@ -118,18 +125,22 @@ export function TripDetailsForm({ cities }: { cities: Region[] }) {
     const place = cities.find((city) => city.id === placeId);
 
     try {
-      const { trip } = await postJson<{ trip: { id: number } }>("/api/trips", {
-        name: title,
-        start_date: startDate,
-        end_date: endDate,
-        description: place ? `Around ${place.name}, ${place.country}` : "",
+      const trip = await api<{ id: number }>("/trips/", {
+        method: "POST",
+        body: {
+          name: title,
+          start_date: startDate,
+          end_date: endDate,
+          description: place ? `Around ${place.name}, ${place.country}` : "",
+        },
       });
       router.push(`/trips/new/itinerary?trip=${trip.id}`);
-      router.refresh();
     } catch (error) {
-      if (error instanceof SubmitError) {
+      if (error instanceof ApiError) {
         setAlert(error.message);
         setErrors(error.fields);
+      } else {
+        setAlert("Could not reach the server.");
       }
       setSaving(false);
     }

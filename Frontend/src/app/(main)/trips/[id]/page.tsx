@@ -1,54 +1,46 @@
-import { notFound } from "next/navigation";
+"use client";
+
+import { use } from "react";
 import { ItineraryBudgetView } from "@/components/itinerary-budget-view";
-import { StatusBadge } from "@/components/ui/badge";
+import { ErrorBlock, LoadingBlock } from "@/components/page-state";
 import { TripBudgetPanel } from "@/components/trip-budget-panel";
-import { getBudget, listExpenses } from "@/lib/api/budget-service";
-import { ApiError } from "@/lib/api/envelope";
-import {
-  getItinerary,
-  getTripDto,
-  listStops,
-  toTrip,
-} from "@/lib/api/trips-service";
+import { StatusBadge } from "@/components/ui/badge";
+import { toItineraryDays, toTrip, type ItineraryDto } from "@/lib/api/adapters";
+import type { BudgetDto, ExpenseDto } from "@/lib/api/budget-types";
+import type { Paginated, StopDto, TripDto } from "@/lib/api/trips-service";
+import { useApi } from "@/lib/api/use-api";
 import { formatDateRange, formatMoney } from "@/lib/format";
 
-export default async function TripItineraryPage({
+export default function TripPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id } = use(params);
 
-  let trip;
-  let days;
-  let budget;
-  let expenses;
-  let stops;
-  let tripDates = { start: "", end: "" };
+  const trip = useApi<TripDto>(`/trips/${id}/`);
+  const itinerary = useApi<ItineraryDto>(`/trips/${id}/itinerary/`);
+  const budget = useApi<BudgetDto>(`/trips/${id}/budget/`);
+  const expenses = useApi<Paginated<ExpenseDto>>(
+    `/trips/${id}/expenses/?page_size=100`,
+  );
+  const stops = useApi<Paginated<StopDto>>(`/trips/${id}/stops/?page_size=100`);
 
-  try {
-    const [dto, itinerary, budgetDto, expenseRows, stopRows] =
-      await Promise.all([
-        getTripDto(id),
-        getItinerary(id),
-        getBudget(id),
-        listExpenses(id),
-        listStops(id),
-      ]);
-    trip = toTrip(dto);
-    days = itinerary;
-    budget = budgetDto;
-    expenses = expenseRows;
-    stops = stopRows;
-    tripDates = { start: dto.start_date, end: dto.end_date };
-  } catch (error) {
-    if (error instanceof ApiError && [403, 404].includes(error.status)) {
-      notFound();
-    }
-    throw error;
+  function refreshAfterChange() {
+    budget.reload();
+    expenses.reload();
+    itinerary.reload();
   }
 
-  const place = [trip.city, trip.country].filter(Boolean).join(", ");
+  if (trip.loading) return <LoadingBlock label="Loading trip" />;
+  if (trip.error) {
+    return <ErrorBlock message={trip.error} onRetry={trip.reload} />;
+  }
+  if (!trip.data) return null;
+
+  const dto = trip.data;
+  const view = toTrip(dto);
+  const place = [view.city, view.country].filter(Boolean).join(", ");
 
   return (
     <div className="space-y-8">
@@ -58,38 +50,43 @@ export default async function TripItineraryPage({
             <p className="text-sm font-medium text-text-muted">{place}</p>
           )}
           <h1 className="mt-1 font-heading text-3xl font-semibold sm:text-4xl">
-            {trip.title}
+            {view.title}
           </h1>
           <p className="mt-2 text-text-muted">
-            {formatDateRange(trip.startDate, trip.endDate)} · {trip.stops}{" "}
-            {trip.stops === 1 ? "stop" : "stops"}
+            {formatDateRange(view.startDate, view.endDate)} · {view.stops}{" "}
+            {view.stops === 1 ? "stop" : "stops"}
           </p>
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          <StatusBadge status={trip.status} />
+          <StatusBadge status={view.status} />
           <p className="text-sm text-text-muted">
             Planned budget{" "}
             <span className="font-semibold text-primary">
-              {formatMoney(trip.budget)}
+              {formatMoney(view.budget, dto.currency)}
             </span>
           </p>
         </div>
       </div>
 
-      <ItineraryBudgetView days={days} />
+      {itinerary.data && (
+        <ItineraryBudgetView days={toItineraryDays(itinerary.data)} />
+      )}
 
-      <TripBudgetPanel
-        tripId={id}
-        budget={budget}
-        expenses={expenses}
-        stops={stops.map((stop) => ({
-          label: stop.title || stop.city.name,
-          value: String(stop.id),
-        }))}
-        tripStart={tripDates.start}
-        tripEnd={tripDates.end}
-      />
+      {budget.data && (
+        <TripBudgetPanel
+          tripId={id}
+          budget={budget.data}
+          expenses={expenses.data?.results ?? []}
+          stops={(stops.data?.results ?? []).map((stop) => ({
+            label: stop.title || stop.city.name,
+            value: String(stop.id),
+          }))}
+          tripStart={dto.start_date}
+          tripEnd={dto.end_date}
+          onChanged={refreshAfterChange}
+        />
+      )}
     </div>
   );
 }

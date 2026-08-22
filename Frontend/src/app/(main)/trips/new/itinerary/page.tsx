@@ -1,15 +1,20 @@
-import Link from "next/link";
-import { ItineraryBuilder } from "@/components/itinerary-builder";
-import { buttonStyles } from "@/components/ui/button";
-import { listCities } from "@/lib/api/geo-service";
-import { getTripDto } from "@/lib/api/trips-service";
+"use client";
 
-export default async function ItineraryBuilderPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ trip?: string }>;
-}) {
-  const { trip: tripId } = await searchParams;
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { ItineraryBuilder } from "@/components/itinerary-builder";
+import { ErrorBlock, LoadingBlock } from "@/components/page-state";
+import { buttonStyles } from "@/components/ui/button";
+import type { CityDto } from "@/lib/api/geo-service";
+import type { Paginated, TripDto } from "@/lib/api/trips-service";
+import { useApi } from "@/lib/api/use-api";
+
+function Builder() {
+  const tripId = useSearchParams().get("trip");
+
+  const trip = useApi<TripDto>(tripId ? `/trips/${tripId}/` : null);
+  const cities = useApi<Paginated<CityDto>>("/cities/?page_size=100");
 
   // Sections are stops on a trip, so there is nothing to build without one.
   if (!tripId) {
@@ -29,19 +34,33 @@ export default async function ItineraryBuilderPage({
     );
   }
 
-  const [trip, cities] = await Promise.all([getTripDto(tripId), listCities()]);
+  if (trip.loading || cities.loading) {
+    return <LoadingBlock label="Loading your trip" />;
+  }
+  if (trip.error) {
+    return <ErrorBlock message={trip.error} onRetry={trip.reload} />;
+  }
+  if (!trip.data) return null;
 
   return (
     <ItineraryBuilder
       tripId={tripId}
-      tripName={trip.name}
-      tripStart={trip.start_date}
-      tripEnd={trip.end_date}
-      currency={trip.currency}
-      cities={cities.map((city) => ({
-        label: `${city.name}, ${city.country}`,
-        value: city.id,
+      tripName={trip.data.name}
+      tripStart={trip.data.start_date}
+      tripEnd={trip.data.end_date}
+      currency={trip.data.currency}
+      cities={(cities.data?.results ?? []).map((city) => ({
+        label: `${city.name}, ${city.country.name}`,
+        value: String(city.id),
       }))}
     />
+  );
+}
+
+export default function ItineraryBuilderPage() {
+  return (
+    <Suspense fallback={<LoadingBlock />}>
+      <Builder />
+    </Suspense>
   );
 }
