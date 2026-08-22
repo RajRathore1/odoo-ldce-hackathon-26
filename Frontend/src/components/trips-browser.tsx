@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { SearchFilterBar } from "@/components/search-filter-bar";
 import { TripCard } from "@/components/trip-card";
+import { cn } from "@/lib/cn";
 import {
   filterByStatus,
   searchTrips,
@@ -12,11 +13,11 @@ import {
 } from "@/lib/trips";
 import type { Trip, TripStatus } from "@/lib/types";
 
-const statusGroups: { key: TripStatus; label: string }[] = [
-  { key: "ongoing", label: "Ongoing" },
-  { key: "upcoming", label: "Up-coming" },
-  { key: "completed", label: "Completed" },
-  { key: "cancelled", label: "Cancelled" },
+const statusGroups: { key: TripStatus; label: string; dot: string }[] = [
+  { key: "ongoing", label: "Ongoing", dot: "bg-warning" },
+  { key: "upcoming", label: "Up-coming", dot: "bg-info" },
+  { key: "completed", label: "Completed", dot: "bg-success" },
+  { key: "cancelled", label: "Cancelled", dot: "bg-danger" },
 ];
 
 export function TripsBrowser({ trips }: { trips: Trip[] }) {
@@ -29,16 +30,17 @@ export function TripsBrowser({ trips }: { trips: Trip[] }) {
     [trips, search, status, order],
   );
 
+  const hasCancelled = trips.some((trip) => trip.status === "cancelled");
+
   const groups = statusGroups
     .filter((group) => status === "all" || status === group.key)
-    // Cancelled is the odd one out: only worth a heading if there are any.
+    // Cancelled only earns a heading once there is something in it.
     .filter((group) => group.key !== "cancelled" || hasCancelled)
     .map((group) => ({
       ...group,
       trips: visible.filter((trip) => trip.status === group.key),
     }));
 
-  const hasCancelled = trips.some((trip) => trip.status === "cancelled");
   const searching = search.trim().length > 0;
 
   return (
@@ -63,9 +65,14 @@ export function TripsBrowser({ trips }: { trips: Trip[] }) {
       />
 
       <div className="space-y-10">
-        {groups.map((group) => (
-          <section key={group.key}>
-            <h2 className="mb-4 inline-flex items-center gap-2 font-heading text-xl font-semibold sm:text-2xl">
+        {groups.map((group, groupIndex) => (
+          <section
+            key={group.key}
+            className="animate-fade-up"
+            style={{ animationDelay: `${groupIndex * 80}ms` }}
+          >
+            <h2 className="mb-4 inline-flex items-center gap-2.5 font-heading text-xl font-semibold sm:text-2xl">
+              <span className={cn("size-2 rounded-full", group.dot)} />
               {group.label}
               <span className="rounded-full bg-subtle px-2 py-0.5 text-sm font-normal text-text-muted">
                 {group.trips.length}
@@ -73,13 +80,15 @@ export function TripsBrowser({ trips }: { trips: Trip[] }) {
             </h2>
 
             {group.trips.length > 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {group.trips.map((trip) => (
-                  <TripCard
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
+                {group.trips.map((trip, tripIndex) => (
+                  <div
                     key={trip.id}
-                    trip={trip}
-                    href={`/trips/${trip.id}`}
-                  />
+                    className="animate-fade-up"
+                    style={{ animationDelay: `${tripIndex * 60}ms` }}
+                  >
+                    <TripCard trip={trip} href={`/trips/${trip.id}`} />
+                  </div>
                 ))}
               </div>
             ) : (
