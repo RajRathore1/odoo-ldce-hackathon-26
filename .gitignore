@@ -60,6 +60,10 @@ Backend/staticfiles/
 .idea/
 *.swp
 
+# Internal planning docs
+*-Plan*.md
+*_Plan*.md
+
 # OS
 .DS_Store
 Thumbs.db
