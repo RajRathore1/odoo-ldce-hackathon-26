@@ -122,12 +122,13 @@ const statusIcon: Record<TripStatus, React.ReactNode> = {
       viewBox="0 0 12 12"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth="1.6"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M3 3l6 6M9 3l-6 6" />
+      <circle cx="6" cy="6" r="4.5" />
+      <path d="M4 4l4 4" />
     </svg>
   ),
 };

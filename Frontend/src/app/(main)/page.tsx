@@ -11,15 +11,22 @@ import type { DashboardDto } from "@/lib/api/dashboard-service";
 import type { CityDto } from "@/lib/api/geo-service";
 import type { Paginated, TripDto } from "@/lib/api/trips-service";
 import { useApi } from "@/lib/api/use-api";
+import { formatMoney } from "@/lib/format";
 
 export default function HomePage() {
   // Three separate calls on purpose: /dashboard/ carries the counts and the
   // budget roll-up, but trims cities and costs off the rows the cards need.
   const dashboard = useApi<DashboardDto>("/dashboard/");
-  const trips = useApi<Paginated<TripDto>>("/trips/?page_size=100");
+  const tripPage = useApi<Paginated<TripDto>>("/trips/?page_size=100");
   const cities = useApi<CityDto[]>("/cities/popular/?limit=8");
 
-  const loading = dashboard.loading || trips.loading || cities.loading;
+  const loading = dashboard.loading || tripPage.loading || cities.loading;
+
+  const trips = (tripPage.data?.results ?? []).map(toTrip);
+  const year = new Date().getUTCFullYear();
+  const yearTrips = trips.filter((trip) => trip.startDate.startsWith(`${year}`));
+  const yearBudget = yearTrips.reduce((sum, trip) => sum + trip.budget, 0);
+  const currency = dashboard.data?.budget_highlights.currency ?? "INR";
 
   return (
     <div className="space-y-8">
@@ -82,9 +89,23 @@ export default function HomePage() {
         <LoadingBlock label="Loading your dashboard" />
       ) : (
         <>
+          {yearTrips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface px-5 py-3 text-sm">
+              <span className="text-text-muted">This year:</span>
+              <span className="font-semibold text-primary">
+                {formatMoney(yearBudget, currency)}
+              </span>
+              <span className="text-text-muted">
+                across {yearTrips.length}{" "}
+                {yearTrips.length === 1 ? "trip" : "trips"}
+              </span>
+            </div>
+          )}
+
           {dashboard.data && <HomeSummary dashboard={dashboard.data} />}
+
           <LandingExplorer
-            trips={(trips.data?.results ?? []).map(toTrip)}
+            trips={trips}
             regions={(cities.data ?? []).map(toRegion)}
           />
         </>
