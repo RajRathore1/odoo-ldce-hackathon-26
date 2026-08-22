@@ -15,6 +15,8 @@ from django.urls import path
 from rest_framework.routers import SimpleRouter
 
 from apps.trips.views import (
+    PublicTripCopyView,
+    PublicTripView,
     TripActivityDetailView,
     TripActivityListCreateView,
     TripActivityReorderView,
@@ -68,5 +70,17 @@ urlpatterns = [
         "trip-activities/<int:pk>/",
         TripActivityDetailView.as_view(),
         name="trip-activity-detail",
+    ),
+    # Public share pages. `<uuid:...>` rather than `<str:...>`, so a malformed
+    # token is a 404 from the router instead of a 500 from the ORM.
+    path(
+        "public/trips/<uuid:share_token>/",
+        PublicTripView.as_view(),
+        name="public-trip",
+    ),
+    path(
+        "public/trips/<uuid:share_token>/copy/",
+        PublicTripCopyView.as_view(),
+        name="public-trip-copy",
     ),
 ]

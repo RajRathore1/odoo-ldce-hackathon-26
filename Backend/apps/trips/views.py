@@ -11,7 +11,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
 from apps.trips import selectors, services
@@ -21,12 +21,15 @@ from apps.trips.serializers import (
     ActivityReorderSerializer,
     CoverPhotoSerializer,
     ItinerarySerializer,
+    PublicTripSerializer,
     StopReorderSerializer,
     TripActivityCreateSerializer,
     TripActivitySerializer,
     TripActivityUpdateSerializer,
+    TripCopySerializer,
     TripDetailSerializer,
     TripListSerializer,
+    TripShareSerializer,
     TripStopSerializer,
     TripStopWriteSerializer,
     TripWriteSerializer,
@@ -159,6 +162,37 @@ class TripViewSet(OwnerQuerysetMixin, SerializerActionMixin, ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         services.delete_trip(self.get_object())
         return no_content()
+
+    @extend_schema(
+        summary="Share or unshare this trip",
+        request=None,
+        responses={200: TripShareSerializer},
+    )
+    @action(detail=True, methods=["post", "delete"], url_path="share")
+    def share(self, request, pk=None):
+        """
+        `POST` publishes, `DELETE` revokes. The token survives both — revoking
+        and re-sharing gives back the same link, which is what somebody who
+        pasted it into a chat expects.
+        """
+        trip = services.set_trip_public(self.get_object(), is_public=request.method == "POST")
+        return success(
+            data=TripShareSerializer(trip).data,
+            message="Trip is now public." if trip.is_public else "Sharing revoked.",
+        )
+
+    @extend_schema(
+        summary="Issue a new share token, killing existing links",
+        request=None,
+        responses={200: TripShareSerializer},
+    )
+    @action(detail=True, methods=["post"], url_path="share/regenerate")
+    def share_regenerate(self, request, pk=None):
+        trip = services.regenerate_share_token(self.get_object())
+        return success(
+            data=TripShareSerializer(trip).data,
+            message="New share link issued. The old one no longer works.",
+        )
 
     @extend_schema(
         summary="Upload a cover photo",
@@ -388,4 +422,93 @@ class TripActivityReorderView(TripScopedMixin, generics.GenericAPIView):
         return success(
             data=TripActivitySerializer(activities, many=True).data,
             message="Activities reordered.",
+        )
+
+
+# --------------------------------------------------------------------- public
+
+
+@extend_schema(tags=["public"], responses={200: PublicTripSerializer})
+class PublicTripView(generics.GenericAPIView):
+    """
+    `GET /public/trips/{share_token}/` — the shared itinerary. **No auth.**
+
+    A trip that is not public, or has been deleted, is a plain 404: the response
+    must not distinguish "wrong token" from "that person stopped sharing".
+    """
+
+    serializer_class = PublicTripSerializer
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+    pagination_class = None
+
+    def get_object(self) -> Trip:
+        return get_object_or_404(
+            Trip.objects.filter(is_public=True).select_related("user"),
+            share_token=self.kwargs["share_token"],
+        )
+
+    def get(self, request, *args, **kwargs):
+        trip = self.get_object()
+        services.record_public_view(trip)
+        summary = selectors.cost_summaries_for([trip.pk])[trip.pk]
+
+        return success(
+            data=PublicTripSerializer(
+                {
+                    "trip": trip,
+                    "owner": trip.user,
+                    "description": trip.description,
+                    "cover_photo": trip.cover_photo,
+                    # +1 in memory: the increment above was an F() expression,
+                    # so this instance still holds the pre-increment value.
+                    "views_count": trip.views_count + 1,
+                    "days": selectors.itinerary_for_trip(trip),
+                    "totals": {
+                        "activities_cost": summary["activities_cost"],
+                        "expenses_cost": summary["expenses_cost"],
+                        "grand_total": summary["grand_total"],
+                    },
+                },
+                context={"request": request},
+            ).data
+        )
+
+
+@extend_schema(
+    tags=["public"],
+    summary="Copy a shared trip into my account",
+    request=TripCopySerializer,
+    responses={201: TripDetailSerializer},
+)
+class PublicTripCopyView(generics.GenericAPIView):
+    """
+    `POST /public/trips/{share_token}/copy/` — Screen 11's "Copy Trip".
+
+    Requires a login, unlike the page itself: the copy has to land in somebody's
+    account.
+    """
+
+    serializer_class = TripCopySerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        source = get_object_or_404(
+            Trip.objects.filter(is_public=True), share_token=kwargs["share_token"]
+        )
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        trip = services.copy_trip(
+            source=source, user=request.user, **serializer.validated_data
+        )
+        return created(
+            data=TripDetailSerializer(
+                selectors.with_stop_activities(selectors.trip_queryset()).get(pk=trip.pk),
+                context={
+                    "request": request,
+                    "cost_summaries": selectors.cost_summaries_for([trip.pk]),
+                },
+            ).data,
+            message="Trip copied to your account.",
         )

@@ -13,6 +13,7 @@ them, so every nested serializer is a real reference rather than a lazy lookup.
 
 from rest_framework import serializers
 
+from apps.accounts.serializers import PublicUserSerializer
 from apps.geo.serializers import CityMiniSerializer
 from apps.trips.models import Trip, TripActivity, TripStop
 from apps.trips.selectors import ZERO_COST_SUMMARY
@@ -526,4 +527,49 @@ class ItinerarySerializer(serializers.Serializer):
     trip = ItineraryTripSerializer(read_only=True)
     days = ItineraryDaySerializer(many=True, read_only=True, required=False)
     stops = ItineraryStopGroupSerializer(many=True, read_only=True, required=False)
+    totals = ItineraryTotalsSerializer(read_only=True)
+
+
+# --------------------------------------------------------------------- sharing
+
+
+class TripShareSerializer(serializers.ModelSerializer):
+    """The body `POST|DELETE /trips/{id}/share/` and `.../regenerate/` return."""
+
+    share_url = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Trip
+        fields = ("is_public", "share_token", "share_url", "views_count")
+
+
+class TripCopySerializer(serializers.Serializer):
+    """
+    `POST /public/trips/{share_token}/copy/`.
+
+    Both fields optional: no `start_date` keeps the original dates, no `name`
+    keeps the original name.
+    """
+
+    start_date = serializers.DateField(required=False)
+    name = serializers.CharField(required=False, max_length=150)
+
+
+class PublicTripSerializer(serializers.Serializer):
+    """
+    `GET /public/trips/{share_token}/` — the itinerary, minus anything private.
+
+    Two deliberate absences (trap #7): the owner is reduced to
+    `accounts.PublicUserSerializer` (first name and avatar, no email, no phone),
+    and **`total_budget` and `remaining` are not here at all**. `grand_total`
+    stays — what a trip costs is the point of sharing an itinerary; what its
+    owner hoped to spend is not.
+    """
+
+    trip = ItineraryTripSerializer(read_only=True)
+    owner = PublicUserSerializer(read_only=True)
+    description = serializers.CharField(read_only=True)
+    cover_photo = serializers.ImageField(read_only=True, allow_null=True)
+    views_count = serializers.IntegerField(read_only=True)
+    days = ItineraryDaySerializer(many=True, read_only=True)
     totals = ItineraryTotalsSerializer(read_only=True)
