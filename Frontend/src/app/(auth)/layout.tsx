@@ -46,7 +46,7 @@ export default function AuthLayout({
         </div>
 
         <p className="relative z-10 text-sm text-white/50">
-          Odoo LDCE Hackathon 26 — GlobeTrotter
+          Odoo LDCE Hackathon 26, GlobeTrotter
         </p>
       </aside>
 

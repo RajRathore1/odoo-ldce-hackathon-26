@@ -44,7 +44,7 @@ export default function HomePage() {
 
           <p className="mt-5 max-w-lg text-white/70">
             Sketch the route, block out the dates, and watch the budget add up
-            as you go — all before you book a thing.
+            as you go, all before you book a thing.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">

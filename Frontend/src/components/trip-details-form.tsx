@@ -117,7 +117,7 @@ export function TripDetailsForm() {
       <section>
         <SectionHeader
           title="Suggestions for this trip"
-          description="Tap to add places to visit or activities to perform — fine-tune each one in the next step."
+          description="Tap to add places to visit or activities to perform, then fine-tune each one in the next step."
         />
         <div className="flex flex-wrap gap-2">
           {suggestions.map((suggestion) => {
@@ -165,7 +165,7 @@ export function TripDetailsForm() {
                   onChange={(event) =>
                     updateSectionLabel(section.id, event.target.value)
                   }
-                  placeholder="Section name — hotel, travel, activity…"
+                  placeholder="Section name, e.g. hotel, travel, activity"
                   className="min-w-0 flex-1 bg-transparent text-sm text-text outline-none placeholder:text-text-muted/70"
                 />
                 <button
@@ -181,7 +181,7 @@ export function TripDetailsForm() {
           </div>
         ) : (
           <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-text-muted">
-            No sections yet — add a suggestion above or start one from
+            No sections yet, add a suggestion above or start one from
             scratch.
           </p>
         )}

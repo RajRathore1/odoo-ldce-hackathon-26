@@ -64,8 +64,8 @@ export default function ItineraryBuilderPage() {
           Build your itinerary
         </h1>
         <p className="mt-2 max-w-xl text-text-muted">
-          Break the trip into sections — travel, stays, activities — each
-          with its own dates and budget.
+          Break the trip into sections, like travel, stays, or activities,
+          each with its own dates and budget.
         </p>
       </div>
 
