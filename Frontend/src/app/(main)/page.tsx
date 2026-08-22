@@ -1,13 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
 import { LandingExplorer } from "@/components/landing-explorer";
+import { HomeSummary } from "@/components/home-summary";
+import { getDashboard } from "@/lib/api/dashboard-service";
 import { popularCities } from "@/lib/api/geo-service";
 import { listTrips } from "@/lib/api/trips-service";
 import { GlobeMark } from "@/components/navbar";
 import { buttonStyles } from "@/components/ui/button";
 
 export default async function HomePage() {
-  const [trips, regions] = await Promise.all([listTrips(), popularCities()]);
+  // /dashboard/ carries the counts, the live trip and the budget roll-up in
+  // one call. The two card rows still come from their own endpoints because the
+  // dashboard trims cities and costs off those rows.
+  const [dashboard, trips, regions] = await Promise.all([
+    getDashboard(),
+    listTrips(),
+    popularCities(),
+  ]);
 
   return (
     <div className="space-y-12">
@@ -68,6 +77,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <HomeSummary dashboard={dashboard} />
 
       <LandingExplorer trips={trips} regions={regions} />
     </div>

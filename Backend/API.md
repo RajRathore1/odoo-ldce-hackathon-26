@@ -1,832 +1,1408 @@
-# API Contract
+# API Reference — implemented surface
 
-**~88 routes across 8 modules.** This is what the frontend builds against — keep it
-accurate. Screen numbers refer to the PDF spec.
+Generated from the code, not from the plan. Every endpoint below is a live route
+in the resolver as of branch `abhishekRajput_backend`; every field list is read
+off the serializer that actually shapes the response.
+
+Sections follow the folder layout under [apps/](../apps/), so the doc and the
+codebase are navigated the same way. For the *planned* surface (including
+endpoints not written yet) see [docs/API.md](API.md).
+
+| Doc | Scope |
+|---|---|
+| `API.md` | the contract — everything the frontend was promised |
+| **`API_REFERENCE.md`** | ← you are here. Only what exists and runs. |
+
+---
+
+## Contents
+
+1. [Conventions](#1-conventions)
+2. [Route index](#2-route-index)
+3. [`apps/accounts`](#3-appsaccounts) — auth + own profile
+4. [`apps/geo`](#4-appsgeo) — countries, cities, saved destinations
+5. [`apps/activities`](#5-appsactivities) — activity catalog
+6. [`apps/trips`](#6-appstrips) — trips, stops, trip activities, itinerary
+7. [`apps/budget`](#7-appsbudget) — expenses, cost breakdown
+8. [Not implemented yet](#8-not-implemented-yet)
 
 ---
 
 ## 1. Conventions
 
-| | |
-|---|---|
-| User API base | `http://localhost:8000/api/v1` |
-| Admin API base | `http://localhost:8000/api/v1/admin` |
-| Auth header | `Authorization: Bearer <access_token>` |
-| Live docs | `/api/docs/` (Swagger) · `/api/redoc/` · `/api/schema/` |
-| Content type | `application/json`; uploads → `multipart/form-data` |
-| Dates | `YYYY-MM-DD` · Datetimes `YYYY-MM-DDTHH:MM:SSZ` (UTC) · Times `HH:MM:SS` |
-| Trailing slash | **required** on every route |
+### Base URL
+
+```
+http://localhost:8000/api/v1/
+```
+
+Swagger UI at `/api/docs/`, ReDoc at `/api/redoc/`, raw schema at `/api/schema/`.
+
+### Authentication
+
+JWT bearer, from [`config/settings/base.py`](../config/settings/base.py):
+
+```http
+Authorization: Bearer <access>
+```
+
+- access token life **60 min**, refresh **7 days** (`.env` overridable)
+- `ROTATE_REFRESH_TOKENS` + `BLACKLIST_AFTER_ROTATION` are on — a refresh call
+  returns a **new refresh token and kills the old one**. The client must store it.
+- DRF's global default is `IsAuthenticated`
+  ([`config/settings/base.py`](../config/settings/base.py)), so **every endpoint
+  needs a token unless the table says `AllowAny`**. That includes `/cities/` and
+  `/activities/` — they are not public in the current code.
 
 ### Response envelope
 
-Every response has the same outer shape. Built by `core/renderers.EnvelopeJSONRenderer`.
+Applied by [`core/renderers.py`](../core/renderers.py) to every response. Views
+never build it by hand.
 
-**Single object**
 ```json
-{ "success": true, "message": null, "data": { "id": 12, "name": "Europe Summer" } }
+{ "success": true, "message": null, "data": { } }
 ```
 
-**List — always paginated**
 ```json
-{
-  "success": true,
-  "message": null,
-  "data": {
-    "results": [ { "id": 12 }, { "id": 13 } ],
-    "pagination": {
-      "count": 137, "page": 2, "pages": 7, "page_size": 20,
-      "has_next": true, "has_previous": true,
-      "next": "http://localhost:8000/api/v1/trips/?page=3",
-      "previous": "http://localhost:8000/api/v1/trips/?page=1"
-    }
-  }
-}
+{ "success": false, "message": "End date must be on or after the start date.",
+  "errors": { "fields": { "end_date": ["End date must be on or after the start date."] } } }
 ```
 
-**Error**
-```json
-{
-  "success": false,
-  "message": "This field is required.",
-  "errors": { "fields": { "start_date": ["This field is required."] } }
-}
-```
-
-> **Frontend note:** list payloads are always at `data.results`, meta always at
-> `data.pagination`. Build one fetch wrapper around that and you never think about
-> it again.
+- field errors are nested under `errors.fields` so the client can bind them to inputs
+- single-message errors (401/403/404/throttle) come back as `errors.detail`
+- `204 No Content` returns an **empty body** — the renderer short-circuits on `None`
 
 ### Pagination
 
-`StandardPagination` is the DRF default → **every list endpoint is paginated** with
-no per-view work.
+Every list is paginated ([`core/pagination.py`](../core/pagination.py)); rows at
+`data.results`, meta at `data.pagination`.
 
-| Param | Default | Max |
+```json
+{ "success": true, "message": null, "data": {
+    "results": [],
+    "pagination": { "count": 137, "page": 2, "pages": 7, "page_size": 20,
+                    "has_next": true, "has_previous": true,
+                    "next": "http://localhost:8000/api/v1/cities/?page=3",
+                    "previous": "http://localhost:8000/api/v1/cities/?page=1" } } }
+```
+
+| Class | Default | `?page_size=` max | Used by |
+|---|---|---|---|
+| `StandardPagination` | 20 | 100 | trips, expenses, stops, saved destinations, trip activities |
+| `LargePagination` | 50 | 200 | `/countries/`, `/cities/`, `/activities/` |
+
+Opted out (`pagination_class = None`, bounded aggregates): `/cities/popular/`,
+`/activities/popular/`, `/activity-categories/`, `/trips/{id}/itinerary/`,
+`/trips/{id}/budget/`.
+
+### Shared query params
+
+| Param | Applies to | Notes |
 |---|---|---|
-| `page` | 1 | — |
-| `page_size` | 20 | 100 |
+| `page`, `page_size` | every paginated list | |
+| `search` | lists with `search_fields` | DRF `SearchFilter`, icontains-OR across the fields |
+| `ordering` | lists with `ordering_fields` | `-` prefixes descending |
 
-- City and activity pickers use `LargePagination`: default **50**, max 200.
-- The community feed uses `FeedCursorPagination`: `?cursor=<opaque>&page_size=20`
-  — cursor-based so posts arriving mid-scroll don't shift items across pages.
-- Analytics endpoints are **not** paginated (bounded top-N / fixed windows).
+Comma-separated multi-value filters (`?status=DRAFT,PLANNED`) come from
+[`core/filters.py`](../core/filters.py) `CharInFilter` / `NumberInFilter`.
 
-### Shared list params
+### Types
 
-On every list endpoint unless noted: `?search=`, `?ordering=` (prefix `-` for
-desc), `?page=`, `?page_size=`.
+| | |
+|---|---|
+| Money | JSON **string** — `"48200.00"`. `COERCE_DECIMAL_TO_STRING` is left on deliberately. |
+| Date | `"2026-03-14"` |
+| Time | `"09:30:00"` |
+| Datetime | `"2026-08-22T11:04:03Z"` |
+| Currency | 3-char ISO, uppercased on write |
+| Images | URL relative to the host in dev — `"/media/users/avatars/x.jpg"`, `null` when unset |
+
+No FX conversion anywhere: a trip has one currency and its children inherit it.
 
 ### Status codes
 
-`200` OK · `201` Created · `204` No Content · `400` validation ·
-`401` missing/expired token · `403` wrong owner or non-admin ·
-`404` not found or soft-deleted · `409` conflict · `500` unhandled.
-
-### Priority / ownership legend
-
-**P0** must ship · **P1** if on schedule · **P2** cut first
-**A** = Dev A · **B** = Dev B
+| Code | When |
+|---|---|
+| 200 | read, update, action |
+| 201 | create |
+| 204 | delete (soft) — empty body |
+| 400 | validation, business rule |
+| 401 | missing/expired/bad token, wrong login credentials |
+| 403 | authenticated but not allowed (deactivated account, non-owner detail route) |
+| 404 | not found **or** not yours — owner-scoped querysets 404 rather than 403 |
+| 409 | state conflict (`ConflictError`) — e.g. re-saving a destination |
 
 ---
 
-## 2. Auth — `/auth/` · Screen 1 · **Dev A · P0**
+## 2. Route index
 
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| POST | `/auth/register/` | — | create account |
-| POST | `/auth/login/` | — | access + refresh |
-| POST | `/auth/token/refresh/` | — | rotate access token |
-| POST | `/auth/logout/` | ✅ | blacklist refresh token |
-| POST | `/auth/password/forgot/` | — | issue reset token |
-| POST | `/auth/password/reset/` | — | consume token, set password |
-| POST | `/auth/password/change/` | ✅ | change while logged in |
+33 live routes. `/api/v1/admin/**` resolves but is **empty** — every
+`urls_admin.py` is still `urlpatterns: list = []`.
 
-**POST `/auth/register/`**
+### [`apps/accounts`](../apps/accounts/) — 10
 
-Params: `email`*, `password`*, `confirm_password`*, `first_name`*, `last_name`,
-`phone_number`, `city` (id), `country` (id), `additional_info`
+| Method | Path | Auth |
+|---|---|---|
+| POST | `/auth/register/` | AllowAny |
+| POST | `/auth/login/` | AllowAny |
+| POST | `/auth/token/refresh/` | AllowAny |
+| POST | `/auth/logout/` | Bearer |
+| POST | `/auth/password/forgot/` | AllowAny |
+| POST | `/auth/password/reset/` | AllowAny |
+| POST | `/auth/password/change/` | Bearer |
+| GET · PATCH · DELETE | `/users/me/` | Bearer |
+| POST | `/users/me/avatar/` | Bearer |
+| GET | `/users/me/stats/` | Bearer |
+
+### [`apps/geo`](../apps/geo/) — 6
+
+| Method | Path |
+|---|---|
+| GET | `/countries/` |
+| GET | `/cities/` |
+| GET | `/cities/popular/` |
+| GET | `/cities/{id}/` |
+| GET · POST | `/users/me/saved-destinations/` |
+| DELETE | `/users/me/saved-destinations/{id}/` |
+
+### [`apps/activities`](../apps/activities/) — 4
+
+| Method | Path |
+|---|---|
+| GET | `/activity-categories/` |
+| GET | `/activities/` |
+| GET | `/activities/popular/` |
+| GET | `/activities/{id}/` |
+
+### [`apps/trips`](../apps/trips/) — 10
+
+| Method | Path |
+|---|---|
+| GET · POST | `/trips/` |
+| GET · PUT · PATCH · DELETE | `/trips/{id}/` |
+| POST | `/trips/{id}/cover-photo/` |
+| GET · POST | `/trips/{trip_id}/stops/` |
+| POST | `/trips/{trip_id}/stops/reorder/` |
+| GET · PUT · PATCH · DELETE | `/trips/{trip_id}/stops/{id}/` |
+| GET · POST | `/trips/{trip_id}/stops/{stop_id}/activities/` |
+| POST | `/trips/{trip_id}/activities/reorder/` |
+| GET | `/trips/{trip_id}/itinerary/` |
+| GET · PUT · PATCH · DELETE | `/trip-activities/{id}/` |
+
+### [`apps/budget`](../apps/budget/) — 3
+
+| Method | Path |
+|---|---|
+| GET · POST | `/trips/{trip_id}/expenses/` |
+| GET · PUT · PATCH · DELETE | `/trips/{trip_id}/expenses/{id}/` |
+| GET | `/trips/{trip_id}/budget/` |
+
+---
+
+## 3. `apps/accounts`
+
+Code: [views.py](../apps/accounts/views.py) ·
+[serializers.py](../apps/accounts/serializers.py) ·
+[services.py](../apps/accounts/services.py) ·
+[selectors.py](../apps/accounts/selectors.py) ·
+[urls.py](../apps/accounts/urls.py) ·
+[urls_me.py](../apps/accounts/urls_me.py)
+
+### Shared read shape — `User`
+
+`UserSerializer`. Returned by every auth endpoint (under `data.user`), by
+`GET|PATCH /users/me/` and by the avatar upload.
 
 ```json
 {
-  "success": true,
-  "message": "Account created successfully.",
-  "data": {
-    "user": {
-      "id": 7, "email": "riya@example.com", "first_name": "Riya",
-      "last_name": "Sharma", "avatar": null, "role": "USER",
-      "city": { "id": 42, "name": "Ahmedabad" },
-      "country": { "id": 3, "name": "India", "iso2": "IN" }
-    },
-    "tokens": {
-      "access": "eyJhbGciOiJIUzI1NiIs...",
-      "refresh": "eyJhbGciOiJIUzI1NiIs..."
-    }
-  }
+  "id": 4,
+  "email": "riya@example.com",
+  "first_name": "Riya",
+  "last_name": "Sharma",
+  "full_name": "Riya Sharma",
+  "phone_number": "+91 98765 43210",
+  "avatar": "/media/users/avatars/riya.jpg",
+  "city": { "id": 12, "name": "Ahmedabad", "state": "Gujarat" },
+  "country": { "id": 1, "name": "India", "iso2": "IN" },
+  "additional_info": "Prefers mountains.",
+  "language": "en",
+  "currency": "INR",
+  "role": "USER",
+  "is_email_verified": false,
+  "created_at": "2026-08-01T09:12:44Z"
 }
 ```
 
-**POST `/auth/login/`** — `email`*, `password`*. Same `data` shape as register.
-`401` on bad credentials, `403` when `is_active=False`.
+Read-only: `id`, `email`, `role`, `is_email_verified`, `created_at`.
+`city` / `country` are `null` when unset. `role` is one of `USER`, `ADMIN`.
 
-> Implementation note: `django.contrib.auth.authenticate()` returns `None` for
-> *both* cases, because `ModelBackend` rejects `is_active=False` before the view
-> sees it. `LoginSerializer` re-checks explicitly to tell them apart. The 403 is
-> only returned to a caller who already supplied the correct password, so it is
-> not an account-enumeration oracle.
->
-> Email is matched case-insensitively and stored lower-cased.
+---
 
-**POST `/auth/password/forgot/`** — `email`*. Always `200` with a generic message,
-so the endpoint never leaks whether an address exists. In dev the token prints to
-the console.
+### POST `/auth/register/` · `RegisterView` · AllowAny
+
+**Payload**
+
+| Field | Type | Req | Notes |
+|---|---|:--:|---|
+| `email` | string | yes | lowercased; uniqueness checked case-insensitively against `all_objects`, so a soft-deleted account still owns its address |
+| `password` | string | yes | run through Django's `AUTH_PASSWORD_VALIDATORS` |
+| `confirm_password` | string | yes | must equal `password` |
+| `first_name` | string | yes | non-blank |
+| `last_name` | string | no | |
+| `phone_number` | string | no | |
+| `city` | int (City id) | no | |
+| `country` | int (Country id) | no | |
+| `additional_info` | string | no | |
+
+```json
+{
+  "email": "riya@example.com",
+  "password": "Str0ng!pass",
+  "confirm_password": "Str0ng!pass",
+  "first_name": "Riya",
+  "last_name": "Sharma",
+  "phone_number": "+91 98765 43210",
+  "city": 12,
+  "country": 1,
+  "additional_info": ""
+}
+```
+
+**201**
+
+```json
+{ "success": true, "message": "Account created successfully.",
+  "data": { "user": { "...": "User shape above" },
+            "tokens": { "access": "eyJ...", "refresh": "eyJ..." } } }
+```
+
+**400** — duplicate email, mismatched confirmation, weak password:
+
+```json
+{ "success": false, "message": "An account with this email already exists.",
+  "errors": { "fields": { "email": ["An account with this email already exists."] } } }
+```
+
+---
+
+### POST `/auth/login/` · `LoginView` · AllowAny
+
+**Payload** — `{"email": "riya@example.com", "password": "Str0ng!pass"}`
+
+**200** — identical `data` shape to register, so the client has one "you are
+signed in" code path.
+
+```json
+{ "success": true, "message": "Signed in successfully.",
+  "data": { "user": { "...": "User" },
+            "tokens": { "access": "eyJ...", "refresh": "eyJ..." } } }
+```
+
+| Failure | Code | Message |
+|---|---|---|
+| unknown email **or** wrong password | 401 | `Incorrect email or password.` — one message on purpose, so this is not an account-enumeration oracle |
+| correct password, `is_active=False` | 403 | `This account has been deactivated. Contact an administrator.` |
+
+---
+
+### POST `/auth/token/refresh/` · `TokenRefreshView` · AllowAny
+
+SimpleJWT's view, re-exported. **Payload** `{"refresh": "eyJ..."}`.
+
+**200** — both tokens, because rotation is on and the old refresh is now
+blacklisted. Store the new refresh or the next call fails.
+
+```json
+{ "success": true, "message": null,
+  "data": { "access": "eyJ...", "refresh": "eyJ...NEW" } }
+```
+
+**401** `Token is invalid or expired.`
+
+---
+
+### POST `/auth/logout/` · `LogoutView` · Bearer
+
+**Payload** `{"refresh": "eyJ..."}`. Blacklists it. **Idempotent** — an
+already-spent token is still a 200.
+
+**200** `{"success": true, "message": "Signed out successfully.", "data": null}`
+
+---
+
+### POST `/auth/password/forgot/` · `PasswordForgotView` · AllowAny
+
+**Payload** `{"email": "riya@example.com"}`
+
+**200, always** — whether or not the address exists. A 404 here would leak which
+emails have accounts. In dev the token is printed to the console.
 
 ```json
 { "success": true, "message": "If that email exists, a reset link has been sent.", "data": null }
 ```
 
-**POST `/auth/password/reset/`** — `token`*, `password`*, `confirm_password`*.
-`400` if the token is expired, already used, or unknown.
+---
+
+### POST `/auth/password/reset/` · `PasswordResetView` · AllowAny
+
+**Payload**
+
+| Field | Type | Req |
+|---|---|:--:|
+| `token` | string | yes |
+| `password` | string | yes |
+| `confirm_password` | string | yes |
+
+Token validity (unknown / expired / already spent) is checked in `services`, not
+the serializer — whether a token is spent is state, and the service is what marks
+it used inside the transaction. Every outstanding refresh token for the user dies.
+
+**200** `Password reset. You can now sign in.`
+**400** on a bad, expired or reused token.
 
 ---
 
-## 3. Profile — `/users/me/` · Screen 12 · **Dev A · P0**
+### POST `/auth/password/change/` · `PasswordChangeView` · Bearer
 
-> Saved destinations (last 3 rows) are served by **Dev B** from `apps/geo/` — see
-> `MODELS.md` §4 for why. Same URL prefix, different app.
->
-> Note on ownership throughout this document: **Dev A owns every model**
-> (except `community` / `analytics`); the owner tag on each section is the owner of
-> the **endpoints**. See `TODO.md` §1.
+**Payload**
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/users/me/` | current profile |
-| PATCH | `/users/me/` | update name, phone, language, currency, city, country, additional_info |
-| POST | `/users/me/avatar/` | upload photo (`multipart`, field `avatar`) |
-| DELETE | `/users/me/` | delete account — soft delete + blacklist tokens |
-| GET | `/users/me/stats/` | counts for the profile header |
-| GET | `/users/me/saved-destinations/` | paginated |
-| POST | `/users/me/saved-destinations/` | `city`* (id), `note` |
-| DELETE | `/users/me/saved-destinations/{id}/` | remove |
+| Field | Type | Req | Notes |
+|---|---|:--:|---|
+| `current_password` | string | yes | verified against the caller |
+| `password` | string | yes | must differ from `current_password` |
+| `confirm_password` | string | yes | |
 
-**GET `/users/me/`**
-```json
-{
-  "success": true, "message": null,
-  "data": {
-    "id": 7, "email": "riya@example.com",
-    "first_name": "Riya", "last_name": "Sharma", "full_name": "Riya Sharma",
-    "phone_number": "+91 98250 11111",
-    "avatar": "http://localhost:8000/media/users/avatars/7.jpg",
-    "city": { "id": 42, "name": "Ahmedabad" },
-    "country": { "id": 3, "name": "India", "iso2": "IN" },
-    "additional_info": "", "language": "en", "currency": "INR",
-    "role": "USER", "is_email_verified": false,
-    "created_at": "2026-08-01T09:12:00Z"
-  }
-}
+**200** `Password changed. Please sign in again.` — **every session dies,
+including the caller's own**. The client must sign in again.
+
+---
+
+### `/users/me/` · `MeView` · Bearer
+
+#### GET
+
+**200** — the `User` shape. `city` / `country` joined in a single query by
+`selectors.user_with_relations`.
+
+#### PATCH — partial update
+
+| Field | Type |
+|---|---|
+| `first_name` | string |
+| `last_name` | string |
+| `phone_number` | string |
+| `city` | int (City id) |
+| `country` | int (Country id) |
+| `additional_info` | string |
+| `language` | string |
+| `currency` | 3-char ISO, uppercased on save |
+
+Absent on purpose: `email`, `role`, `is_active` (must not be self-service) and
+`avatar` (has its own multipart endpoint).
+
+**200** `{"success": true, "message": "Profile updated.", "data": { "...": "User" } }`
+
+#### DELETE
+
+**204**, empty body. Soft delete, and every session is killed.
+
+---
+
+### POST `/users/me/avatar/` · `AvatarView` · Bearer
+
+`multipart/form-data`, single required field `avatar` (image).
+
+```http
+POST /api/v1/users/me/avatar/
+Content-Type: multipart/form-data
+
+avatar=@riya.jpg
 ```
 
-**GET `/users/me/stats/`**
+**200** `{"success": true, "message": "Avatar updated.", "data": { "...": "User" } }`
 
-> ⚠️ **Returns zeros until task A3.** Every figure aggregates over `trips`,
-> which does not exist yet. The shape below is final, so the profile header can
-> be built against it now.
+---
+
+### GET `/users/me/stats/` · `MeStatsView` · Bearer
+
+Profile-header counters (Screen 12).
 
 ```json
-{
-  "success": true, "message": null,
-  "data": {
-    "total_trips": 9, "ongoing": 1, "upcoming": 3, "completed": 5,
-    "cities_visited": 21, "countries_visited": 7,
-    "total_planned_spend": "412300.00", "currency": "INR"
-  }
-}
+{ "success": true, "message": null, "data": {
+    "total_trips": 0, "ongoing": 0, "upcoming": 0, "completed": 0,
+    "cities_visited": 0, "countries_visited": 0,
+    "total_planned_spend": "0.00", "currency": "INR" } }
+```
+
+> **Known stub.** [`selectors.user_stats()`](../apps/accounts/selectors.py)
+> returns literal zeros — the aggregation over `trips` was never wired up after
+> the Trip model landed. The shape is final; only the numbers are fake.
+
+---
+
+## 4. `apps/geo`
+
+Code: [views.py](../apps/geo/views.py) ·
+[serializers.py](../apps/geo/serializers.py) ·
+[filters.py](../apps/geo/filters.py) ·
+[selectors.py](../apps/geo/selectors.py) ·
+[services.py](../apps/geo/services.py) ·
+[urls.py](../apps/geo/urls.py)
+
+Read-only except saved destinations. Every route needs a Bearer token (no view
+here opts out of the global default).
+
+### GET `/countries/` · `CountryListView`
+
+`LargePagination` — roughly 30 rows, so a dropdown fills in one request.
+
+| Query | Type | Notes |
+|---|---|---|
+| `region` | string | case-insensitive exact |
+| `is_active` | bool | |
+| `search` | string | `name`, `iso2`, `iso3` |
+| `ordering` | `name` / `region` | default `name` |
+
+**200**
+
+```json
+{ "success": true, "message": null, "data": {
+  "results": [
+    { "id": 1, "name": "India", "iso2": "IN", "iso3": "IND",
+      "region": "Asia", "currency_code": "INR", "flag_emoji": "🇮🇳" }
+  ],
+  "pagination": { "count": 30, "page": 1, "pages": 1, "page_size": 50,
+                  "has_next": false, "has_previous": false,
+                  "next": null, "previous": null } } }
 ```
 
 ---
 
-## 4. Geo — `/cities/`, `/countries/` · Screen 7 · **Dev B · P0**
+### GET `/cities/` · `CityListView`
 
-| Method | Path | Purpose |
+City Search (Screen 7). `LargePagination`.
+
+| Query | Type | Notes |
 |---|---|---|
-| GET | `/countries/` | dropdown source. `?search=`, `?region=` |
-| GET | `/cities/` | **City Search** |
-| GET | `/cities/{id}/` | detail + top 10 activities |
-| GET | `/cities/popular/` | dashboard recommendations. `?limit=10` |
+| `country` | int | |
+| `region` | string | lives on the country — one join, one filter |
+| `min_cost_index` / `max_cost_index` | number | |
+| `is_active` | bool | |
+| `search` | string | `name`, `state`, `country__name` |
+| `ordering` | `popularity_score` / `name` / `cost_index` / `avg_daily_cost` | default `-popularity_score,name` |
 
-**GET `/cities/`**
-
-| Param | Type | Notes |
-|---|---|---|
-| `search` | string | city name, state, country name |
-| `country` | int | country id |
-| `region` | string | `Asia`, `Europe`, … |
-| `min_cost_index` / `max_cost_index` | decimal | |
-| `ordering` | enum | `-popularity_score` (default), `name`, `cost_index`, `-cost_index` |
-| `page` / `page_size` | int | `page_size` default **50** |
+**200** — one `results` row:
 
 ```json
 {
-  "success": true, "message": null,
-  "data": {
-    "results": [
-      {
-        "id": 88, "name": "Paris", "state": "Île-de-France",
-        "country": { "id": 11, "name": "France", "iso2": "FR", "flag_emoji": "🇫🇷" },
-        "region": "Europe",
-        "cost_index": "142.50", "avg_daily_cost": "9800.00", "currency": "EUR",
-        "popularity_score": 1284,
-        "image_url": "https://cdn.globetrotter.dev/cities/paris.jpg",
-        "activities_count": 37,
-        "is_saved": true
-      }
-    ],
-    "pagination": { "count": 150, "page": 1, "pages": 3, "page_size": 50,
-                    "has_next": true, "has_previous": false,
-                    "next": "http://localhost:8000/api/v1/cities/?page=2",
-                    "previous": null }
-  }
+  "id": 12,
+  "name": "Manali",
+  "state": "Himachal Pradesh",
+  "country": { "id": 1, "name": "India", "iso2": "IN", "flag_emoji": "🇮🇳" },
+  "region": "Asia",
+  "cost_index": "62.50",
+  "avg_daily_cost": "2400.00",
+  "currency": "INR",
+  "popularity_score": 880,
+  "image_url": "https://cdn.example.com/manali.jpg",
+  "activities_count": 24,
+  "is_saved": true
 }
 ```
 
-`is_saved` is annotated against the requesting user so the frontend renders the
-bookmark state without a second call. `activities_count` is a `Count` annotation.
+`activities_count` and `is_saved` are **queryset annotations** from
+`selectors.city_list(user)`, never per-row queries. `is_saved` is scoped to the
+caller, so the frontend draws the bookmark without a second call.
 
 ---
 
-## 5. Activities catalog — `/activities/` · Screen 8 · **Dev B · P0**
+### GET `/cities/popular/` · `PopularCityListView`
 
-| Method | Path | Purpose |
+Bounded top-N. **Not paginated** — `data` is a bare array of the row shape above.
+
+| Query | Type | Default | Max |
+|---|---|---|---|
+| `limit` | int | 10 | 50 — silently clamped; a non-numeric value falls back to the default |
+
+```json
+{ "success": true, "message": null,
+  "data": [ { "id": 12, "name": "Manali", "...": "same fields as /cities/" } ] }
+```
+
+Ordering is fixed at `-popularity_score, name` over `is_active=True`. No
+`search`, `ordering` or filters — the filter backends are switched off on this view.
+
+---
+
+### GET `/cities/{id}/` · `CityDetailView`
+
+The list row **plus** the map fields and the top 10 activities.
+
+```json
+{ "success": true, "message": null, "data": {
+  "id": 12, "name": "Manali", "state": "Himachal Pradesh",
+  "country": { "id": 1, "name": "India", "iso2": "IN", "flag_emoji": "🇮🇳" },
+  "region": "Asia", "cost_index": "62.50", "avg_daily_cost": "2400.00",
+  "currency": "INR", "popularity_score": 880,
+  "image_url": "https://cdn.example.com/manali.jpg",
+  "activities_count": 24, "is_saved": true,
+  "description": "Hill station on the Beas.",
+  "latitude": "32.239600", "longitude": "77.188700", "timezone": "Asia/Kolkata",
+  "top_activities": [
+    { "id": 501, "name": "Solang Valley paragliding", "activity_type": "ADVENTURE",
+      "cost": "2500.00", "currency": "INR", "duration_minutes": 90,
+      "rating": "4.6", "image_url": "https://cdn.example.com/solang.jpg" }
+  ] } }
+```
+
+`top_activities` is capped at 10 by `selectors.city_top_activities`.
+**404** for an id that does not exist.
+
+---
+
+### `/users/me/saved-destinations/` · `SavedDestinationListCreateView`
+
+Owned by `geo` rather than `accounts`, because City Search annotates `is_saved`
+off this model and `geo` may not import `accounts`. `StandardPagination`.
+
+#### GET
+
+**200**
+
+```json
+{ "success": true, "message": null, "data": {
+  "results": [
+    { "id": 7,
+      "city": { "id": 12, "name": "Manali", "state": "Himachal Pradesh",
+                "country_name": "India",
+                "image_url": "https://cdn.example.com/manali.jpg" },
+      "note": "Go in October.",
+      "created_at": "2026-08-10T06:31:02Z" }
+  ],
+  "pagination": { "count": 1, "page": 1, "pages": 1, "page_size": 20,
+                  "has_next": false, "has_previous": false,
+                  "next": null, "previous": null } } }
+```
+
+#### POST
+
+| Field | Type | Req |
+|---|---|:--:|
+| `city` | int (City id) | yes |
+| `note` | string, max 255 | no |
+
+```json
+{ "city": 12, "note": "Go in October." }
+```
+
+**201** `{"success": true, "message": "Destination saved.", "data": { "...": "row above" } }`
+
+**409** — the same city twice:
+
+```json
+{ "success": false, "message": "You have already saved this destination.",
+  "errors": { "detail": "You have already saved this destination." } }
+```
+
+---
+
+### DELETE `/users/me/saved-destinations/{id}/` · `SavedDestinationDestroyView`
+
+Owner-scoped queryset, so somebody else's id is a **404**, not a 403.
+
+**204**, empty body.
+
+---
+
+## 5. `apps/activities`
+
+Code: [views.py](../apps/activities/views.py) ·
+[serializers.py](../apps/activities/serializers.py) ·
+[filters.py](../apps/activities/filters.py) ·
+[selectors.py](../apps/activities/selectors.py) ·
+[urls.py](../apps/activities/urls.py)
+
+Read-only catalog. Bearer token required on all four routes.
+
+### `activity_type` values
+
+From [constants.py](../apps/activities/constants.py):
+
+`SIGHTSEEING` · `FOOD` · `ADVENTURE` · `CULTURE` · `NIGHTLIFE` · `SHOPPING` ·
+`NATURE` · `RELAX` · `TRANSPORT` · `OTHER`
+
+---
+
+### GET `/activity-categories/` · `ActivityCategoryListView`
+
+Screen 8's filter chips. **Not paginated**, no filters — a small fixed set
+rendered all at once.
+
+```json
+{ "success": true, "message": null, "data": [
+  { "id": 3, "name": "Adventure", "slug": "adventure",
+    "icon": "mountain", "description": "Trekking, rafting, paragliding." } ] }
+```
+
+---
+
+### GET `/activities/` · `ActivityListView`
+
+Activity Search (Screen 8). `LargePagination`.
+
+| Query | Type | Notes |
 |---|---|---|
-| GET | `/activity-categories/` | filter chips (unpaginated, small fixed set) |
-| GET | `/activities/` | **Activity Search** |
-| GET | `/activities/{id}/` | detail |
-| GET | `/activities/popular/` | suggestions. `?city=&limit=` |
-
-**GET `/activities/`**
-
-| Param | Type | Notes |
-|---|---|---|
-| `search` | string | name + description |
 | `city` | int | |
-| `country` | int | via `city__country` |
-| `category` | int | |
-| `activity_type` | enum | `SIGHTSEEING`, `FOOD`, `ADVENTURE`, `CULTURE`, `NIGHTLIFE`, `SHOPPING`, `NATURE`, `RELAX`, `TRANSPORT`, `OTHER` |
-| `min_cost` / `max_cost` | decimal | |
-| `min_duration` / `max_duration` | int | minutes |
-| `ordering` | enum | `-popularity_score` (default), `cost`, `-cost`, `duration_minutes`, `-rating` |
+| `country` | int list | comma-separated — `?country=1,2` |
+| `category` | int list | comma-separated |
+| `activity_type` | string list | comma-separated, e.g. `?activity_type=FOOD,ADVENTURE` |
+| `min_cost` / `max_cost` | number | |
+| `min_duration` / `max_duration` | number | minutes |
+| `is_active` | bool | |
+| `search` | string | `name`, `description` |
+| `ordering` | `popularity_score` / `cost` / `duration_minutes` / `rating` / `name` | default `-popularity_score,name` |
+
+**200** — one `results` row (also the body of `/activities/{id}/`):
 
 ```json
 {
-  "success": true, "message": null,
-  "data": {
-    "results": [
-      {
-        "id": 512, "name": "Paragliding at Bir Billing",
-        "description": "20-minute tandem flight with a certified pilot.",
-        "activity_type": "ADVENTURE",
-        "category": { "id": 4, "name": "Adventure", "slug": "adventure", "icon": "mountain" },
-        "city": { "id": 61, "name": "Bir", "country_name": "India" },
-        "cost": "2500.00", "currency": "INR",
-        "duration_minutes": 90, "rating": "4.6", "popularity_score": 340,
-        "image_url": "https://cdn.globetrotter.dev/activities/512.jpg"
-      }
-    ],
-    "pagination": { "count": 412, "page": 1, "pages": 9, "page_size": 50,
-                    "has_next": true, "has_previous": false,
-                    "next": "http://localhost:8000/api/v1/activities/?page=2",
-                    "previous": null }
-  }
+  "id": 501,
+  "name": "Solang Valley paragliding",
+  "description": "Tandem flight with a certified pilot.",
+  "activity_type": "ADVENTURE",
+  "category": { "id": 3, "name": "Adventure", "slug": "adventure", "icon": "mountain" },
+  "city": { "id": 12, "name": "Manali", "state": "Himachal Pradesh",
+            "country_name": "India", "image_url": "https://cdn.example.com/manali.jpg" },
+  "cost": "2500.00",
+  "currency": "INR",
+  "duration_minutes": 90,
+  "rating": "4.6",
+  "popularity_score": 640,
+  "image_url": "https://cdn.example.com/solang.jpg"
 }
 ```
 
 ---
 
-## 6. Dashboard — `/dashboard/` · Screen 2 · **Dev B · P0**
+### GET `/activities/popular/` · `PopularActivityListView`
 
-**GET `/dashboard/`** — one call, so the home screen isn't a five-request waterfall.
-Lives in its own `apps/dashboard/` (views only, no models) and composes
-`geo.selectors.popular_cities()` + `budget.services.bulk_trip_cost_summary()`.
+Bounded top-N. **Not paginated** — `data` is a bare array of the row shape above.
 
-```json
-{
-  "success": true, "message": null,
-  "data": {
-    "user": { "first_name": "Riya", "avatar": "http://.../7.jpg" },
-    "counts": { "total_trips": 9, "ongoing": 1, "upcoming": 3, "completed": 5 },
-    "ongoing_trip": {
-      "id": 31, "name": "Himachal Winter",
-      "start_date": "2026-08-18", "end_date": "2026-08-27",
-      "stops_count": 3, "days_remaining": 5,
-      "cover_photo": "http://.../covers/31.jpg"
-    },
-    "recent_trips": [
-      { "id": 31, "name": "Himachal Winter", "status": "ONGOING",
-        "start_date": "2026-08-18", "end_date": "2026-08-27",
-        "stops_count": 3, "estimated_cost": "48200.00", "currency": "INR",
-        "cover_photo": "http://.../covers/31.jpg" }
-    ],
-    "popular_cities": [
-      { "id": 88, "name": "Paris", "country_name": "France",
-        "popularity_score": 1284, "image_url": "https://.../paris.jpg" }
-    ],
-    "budget_highlights": {
-      "currency": "INR",
-      "total_planned": "412300.00",
-      "upcoming_trips_budget": "96500.00",
-      "avg_cost_per_trip": "45811.11",
-      "over_budget_trips": 1
-    }
-  }
-}
-```
-
-`ongoing_trip` is `null` when the user has none.
+| Query | Type | Default | Max |
+|---|---|---|---|
+| `city` | int | — | restrict to one city |
+| `limit` | int | 10 | 50, clamped |
 
 ---
 
-## 7. Trips — `/trips/` · Screens 3, 4, 6, 10, 11 · **Dev A**
+### GET `/activities/{id}/` · `ActivityDetailView`
 
-### 7.1 Trip CRUD · P0
+**200** — the row shape above, unwrapped: `data` is the object itself.
+**404** for an unknown id.
 
-| Method | Path | Purpose |
+---
+
+## 6. `apps/trips`
+
+Code: [views.py](../apps/trips/views.py) ·
+[serializers.py](../apps/trips/serializers.py) ·
+[filters.py](../apps/trips/filters.py) ·
+[selectors.py](../apps/trips/selectors.py) ·
+[services.py](../apps/trips/services.py) ·
+[urls.py](../apps/trips/urls.py)
+
+Everything here is **owner-scoped at the queryset**, not by permission class:
+another user's trip id is a **404**, never a 403. `IsTripOwner` stays on detail
+routes as a second line of defence. Nested routes resolve `trip_id` (and
+`stop_id`) through `TripScopedMixin` / `StopScopedMixin`, so ownership is
+checked once.
+
+### `status` values
+
+From [constants.py](../apps/trips/constants.py):
+
+| Value | UI label | Set by |
 |---|---|---|
-| GET | `/trips/` | **My Trips** |
-| POST | `/trips/` | **Create Trip** |
-| GET | `/trips/{id}/` | detail with nested stops + activities |
-| PATCH | `/trips/{id}/` | edit |
-| DELETE | `/trips/{id}/` | soft delete |
-| POST | `/trips/{id}/cover-photo/` | upload (`multipart`, field `cover_photo`) |
-| POST | `/trips/{id}/duplicate/` | clone your own trip |
+| `DRAFT` | Draft | the user, explicitly |
+| `PLANNED` | Upcoming | derived from dates in `Trip.save()` |
+| `ONGOING` | Ongoing | derived |
+| `COMPLETED` | Completed | derived |
+| `CANCELLED` | Cancelled | the user, explicitly |
 
-**GET `/trips/`**
+Only `DRAFT` and `CANCELLED` are honoured on write. The other three are
+recomputed from the dates on every save, so sending them is **silently ignored
+rather than rejected**.
 
-| Param | Type | Notes |
+---
+
+### Shared read shapes
+
+#### `TripActivity` — `TripActivitySerializer`
+
+```json
+{
+  "id": 3312,
+  "trip_stop": 91,
+  "title": "Solang Valley paragliding",
+  "activity_id": 501,
+  "activity_type": "ADVENTURE",
+  "day_date": "2026-03-16",
+  "start_time": "09:30:00",
+  "end_time": "11:00:00",
+  "duration_minutes": 90,
+  "cost": "2500.00",
+  "currency": "INR",
+  "order": 1,
+  "notes": "Carry a windbreaker."
+}
+```
+
+`title` / `activity_type` come off model properties: the catalog row when
+`activity_id` is set, the user's own wording for a custom entry. For a custom
+entry `activity_id` is `null` and `activity_type` is `null`.
+
+`cost` is a **snapshot** taken when the activity was added — editing the catalog
+later never rewrites a saved budget.
+
+#### `TripStop` — `TripStopSerializer`
+
+```json
+{
+  "id": 91,
+  "title": "Manali",
+  "city": { "id": 12, "name": "Manali", "state": "Himachal Pradesh",
+            "country_name": "India", "image_url": "https://cdn.example.com/manali.jpg" },
+  "start_date": "2026-03-15",
+  "end_date": "2026-03-18",
+  "nights": 3,
+  "order": 1,
+  "budget": "18000.00",
+  "activities_count": 4,
+  "notes": ""
+}
+```
+
+`title` falls back to the city name when the stop has no explicit title.
+Nested inside `GET /trips/{id}/` this shape gains an `activities` array.
+
+---
+
+### GET `/trips/` · `TripViewSet.list`
+
+My Trips (Screen 6). `StandardPagination`.
+
+| Query | Type | Notes |
 |---|---|---|
-| `status` | enum | `DRAFT`, `PLANNED`, `ONGOING`, `COMPLETED`, `CANCELLED` — Screen 6 tabs |
-| `search` | string | name + description |
-| `city` / `country` | int | trips containing this city/country |
-| `start_date_after` / `start_date_before` | date | |
+| `status` | string list | comma-separated — `?status=PLANNED,DRAFT` |
 | `is_public` | bool | |
-| `group_by` | enum | `status`, `month`, `country` — mockup's "Group by" control |
-| `ordering` | enum | `-created_at` (default), `start_date`, `-start_date`, `name` |
+| `start_date_after` / `start_date_before` | date | |
+| `city` | int list | trips containing this city; excludes soft-deleted stops |
+| `country` | int list | same, via the city's country |
+| `search` | string | `name`, `description` |
+| `ordering` | `created_at` / `start_date` / `name` | default `-created_at` |
+
+**200** — one `results` row (`TripListSerializer`):
 
 ```json
 {
-  "success": true, "message": null,
-  "data": {
-    "results": [
-      {
-        "id": 31, "name": "Himachal Winter", "description": "Bir + Manali + Kasol",
-        "start_date": "2026-08-18", "end_date": "2026-08-27",
-        "duration_days": 10, "status": "ONGOING",
-        "cover_photo": "http://localhost:8000/media/trips/covers/31.jpg",
-        "stops_count": 3, "activities_count": 14,
-        "cities": ["Bir", "Manali", "Kasol"],
-        "total_budget": "50000.00", "estimated_cost": "48200.00",
-        "currency": "INR", "is_over_budget": false,
-        "is_public": true,
-        "share_url": "http://localhost:3000/trips/shared/9f1c8ab2-...",
-        "created_at": "2026-07-02T11:40:00Z"
-      }
-    ],
-    "pagination": { "count": 9, "page": 1, "pages": 1, "page_size": 20,
-                    "has_next": false, "has_previous": false,
-                    "next": null, "previous": null }
-  }
+  "id": 55,
+  "name": "Himachal in spring",
+  "description": "Bir, Manali, Kasol.",
+  "start_date": "2026-03-14",
+  "end_date": "2026-03-24",
+  "duration_days": 11,
+  "status": "PLANNED",
+  "cover_photo": "/media/trips/covers/himachal.jpg",
+  "stops_count": 3,
+  "activities_count": 9,
+  "cities": ["Bir", "Manali", "Kasol"],
+  "total_budget": "60000.00",
+  "estimated_cost": "48200.00",
+  "currency": "INR",
+  "is_over_budget": false,
+  "is_public": false,
+  "share_url": "http://localhost:5173/trips/shared/8f2c9d64-1a3e-4b77-9c50-2f6b1d0e77aa",
+  "created_at": "2026-08-02T10:22:31Z"
 }
 ```
 
-With `?group_by=`, `data` gains a sibling key (`results` stays flat):
-```json
-"groups": [ { "key": "ONGOING",   "label": "Ongoing",  "count": 1 },
-            { "key": "PLANNED",   "label": "Upcoming", "count": 3 },
-            { "key": "COMPLETED", "label": "Completed","count": 5 } ]
-```
+`share_token` is deliberately **not** on the list shape — a page of tokens is a
+page of live share links, and nothing on Screen 6 needs them. `estimated_cost`
+and `is_over_budget` come from one bulk cost lookup for the whole page, passed
+into the serializer as context.
 
-> **Perf:** `estimated_cost` / `is_over_budget` come from
-> `bulk_trip_cost_summary(trip_ids)` — one query for the whole page. Do **not**
-> call `trip_cost_summary()` per row.
-
-**POST `/trips/`** — `name`*, `start_date`*, `end_date`*, `description`,
-`total_budget`, `currency`, `cover_photo` (file)
-
-Validation: `end_date >= start_date`. Past `start_date` is allowed — users log
-completed trips.
-
-```json
-{ "success": true, "message": "Trip created successfully.",
-  "data": { "id": 44, "name": "Europe Summer",
-            "start_date": "2026-11-02", "end_date": "2026-11-16",
-            "duration_days": 15, "status": "PLANNED", "stops_count": 0,
-            "currency": "INR", "total_budget": null,
-            "share_token": "3b7f21ca-...", "is_public": false } }
-```
-
-### 7.2 Stops (sections) · Screen 5 · P0
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/trips/{trip_id}/stops/` | list, ordered by `order` |
-| POST | `/trips/{trip_id}/stops/` | **Add Stop** |
-| GET | `/trips/{trip_id}/stops/{id}/` | detail |
-| PATCH | `/trips/{trip_id}/stops/{id}/` | edit city / dates / budget |
-| DELETE | `/trips/{trip_id}/stops/{id}/` | remove (cascades to its activities) |
-| POST | `/trips/{trip_id}/stops/reorder/` | drag-to-reorder |
-
-**POST `/trips/{trip_id}/stops/`** — `city`* (id), `start_date`*, `end_date`*,
-`title`, `budget`, `notes`
-
-`order` is assigned server-side (`max(order) + 1`). Validation: the stop range must
-sit inside the trip range → `400` otherwise.
-
-```json
-{ "success": true, "message": "Stop added.",
-  "data": { "id": 89, "title": "Bir",
-            "city": { "id": 61, "name": "Bir", "country_name": "India",
-                      "image_url": "https://.../bir.jpg" },
-            "start_date": "2026-08-18", "end_date": "2026-08-21",
-            "nights": 3, "order": 1, "budget": "18000.00",
-            "activities_count": 0, "notes": "" } }
-```
-
-**POST `/trips/{trip_id}/stops/reorder/`**
-```json
-{ "items": [ { "id": 91, "order": 1 }, { "id": 89, "order": 2 }, { "id": 90, "order": 3 } ] }
-```
-One `bulk_update` in one transaction. Returns the reordered list. `400` if any id
-does not belong to the trip.
-
-### 7.3 Trip activities · Screen 5 · P0
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/trips/{trip_id}/stops/{stop_id}/activities/` | list for a stop |
-| POST | `/trips/{trip_id}/stops/{stop_id}/activities/` | attach catalog activity or custom entry |
-| PATCH | `/trip-activities/{id}/` | edit time / cost / day / order |
-| DELETE | `/trip-activities/{id}/` | remove |
-| POST | `/trips/{trip_id}/activities/reorder/` | reorder / move across days |
-
-Detail routes are **flat** (`/trip-activities/{id}/`) on purpose: calendar
-drag-and-drop moves an item between days *and* stops, and a nested URL would encode
-a parent that is about to change.
-
-**POST `.../activities/`** — `activity` (id) **or** `custom_title`, plus `day_date`*,
-`start_time`, `end_time`, `cost`, `duration_minutes`, `notes`
-
-- Exactly one of `activity` / `custom_title` is required → `400` otherwise.
-- If `activity` is given and `cost` is omitted, `cost` is **snapshotted** from the
-  catalog.
-- `day_date` must fall inside the parent stop's range.
-
-**POST `/trips/{trip_id}/activities/reorder/`** — also handles moving between days:
-```json
-{ "items": [ { "id": 771, "order": 1, "day_date": "2026-08-19", "trip_stop": 89 } ] }
-```
-
-### 7.4 Itinerary view · Screen 6 · P0
-
-**GET `/trips/{trip_id}/itinerary/`** — `?view=day` (default) or `?view=stop`.
-Not paginated; a trip is a bounded object.
-
-```json
-{
-  "success": true, "message": null,
-  "data": {
-    "trip": { "id": 31, "name": "Himachal Winter",
-              "start_date": "2026-08-18", "end_date": "2026-08-27",
-              "duration_days": 10, "currency": "INR" },
-    "days": [
-      {
-        "date": "2026-08-18", "day_number": 1,
-        "stop": { "id": 89, "title": "Bir",
-                  "city": { "id": 61, "name": "Bir" }, "order": 1 },
-        "activities": [
-          { "id": 771, "title": "Paragliding at Bir Billing", "activity_id": 512,
-            "activity_type": "ADVENTURE",
-            "start_time": "09:30:00", "end_time": "11:00:00",
-            "duration_minutes": 90, "cost": "2500.00", "currency": "INR",
-            "order": 1, "notes": "" }
-        ],
-        "day_total_cost": "2500.00"
-      },
-      { "date": "2026-08-19", "day_number": 2,
-        "stop": { "id": 89, "title": "Bir",
-                  "city": { "id": 61, "name": "Bir" }, "order": 1 },
-        "activities": [], "day_total_cost": "0.00" }
-    ],
-    "totals": { "activities_cost": "31400.00", "expenses_cost": "16800.00",
-                "grand_total": "48200.00" }
-  }
-}
-```
-
-**Every date in the trip range appears, including empty days.** The frontend renders
-a placeholder rather than computing gaps. `stop` is `null` on days not covered by
-any stop.
-
-### 7.5 Calendar · Screen 10 · P0
-
-**GET `/trips/{trip_id}/calendar/`** — `?month=YYYY-MM` (optional; omit for the
-whole trip)
-
-Same data as the itinerary, shaped for a calendar grid. When `month` is given, the
-range is padded to whole weeks so the grid is complete.
-
-```json
-{
-  "success": true, "message": null,
-  "data": {
-    "range": { "start": "2026-08-01", "end": "2026-08-31" },
-    "cells": [
-      { "date": "2026-08-18", "in_trip": true, "stop_id": 89, "city_name": "Bir",
-        "activity_count": 1, "day_total_cost": "2500.00", "is_over_budget": false,
-        "items": [ { "id": 771, "title": "Paragliding at Bir Billing",
-                     "start_time": "09:30:00", "activity_type": "ADVENTURE" } ] },
-      { "date": "2026-08-01", "in_trip": false, "stop_id": null, "city_name": null,
-        "activity_count": 0, "day_total_cost": "0.00", "is_over_budget": false,
-        "items": [] }
-    ]
-  }
-}
-```
-
-### 7.6 Budget · Screen 9 · **Dev A** · P0
-
-**GET `/trips/{trip_id}/budget/`** — chart-ready. Labels and percentages are
-precomputed; the frontend should not be dividing to draw a pie.
-
-```json
-{
-  "success": true, "message": null,
-  "data": {
-    "currency": "INR",
-    "total_budget": "50000.00",
-    "grand_total": "48200.00",
-    "remaining": "1800.00",
-    "is_over_budget": false,
-    "avg_cost_per_day": "4820.00",
-    "breakdown": [
-      { "category": "TRANSPORT", "label": "Transport",  "amount": "12000.00", "percentage": 24.9 },
-      { "category": "STAY",      "label": "Stay",       "amount": "14000.00", "percentage": 29.0 },
-      { "category": "ACTIVITY",  "label": "Activities", "amount": "17400.00", "percentage": 36.1 },
-      { "category": "MEALS",     "label": "Meals",      "amount": "4800.00",  "percentage": 10.0 }
-    ],
-    "by_stop": [
-      { "stop_id": 89, "title": "Bir", "budget": "18000.00",
-        "spent": "17600.00", "is_over_budget": false }
-    ],
-    "by_day": [
-      { "date": "2026-08-18", "amount": "6200.00", "is_over_budget": true }
-    ],
-    "alerts": [
-      { "type": "OVERBUDGET_DAY", "date": "2026-08-18",
-        "message": "2026-08-18 exceeds the average daily budget by 28%." }
-    ]
-  }
-}
-```
-
-`total_budget`, `remaining` and `is_over_budget` are `null`/`false` when the user
-never set a budget.
-
-### 7.7 Expenses · **Dev A** · P0
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/trips/{trip_id}/expenses/` | paginated. `?category=`, `?trip_stop=`, `?is_estimated=`, `?ordering=` |
-| POST | `/trips/{trip_id}/expenses/` | `category`*, `title`*, `amount`*, `trip_stop`, `incurred_on`, `is_estimated`, `notes` |
-| GET | `/trips/{trip_id}/expenses/{id}/` | detail |
-| PATCH | `/trips/{trip_id}/expenses/{id}/` | edit |
-| DELETE | `/trips/{trip_id}/expenses/{id}/` | remove |
-
-### 7.8 Sharing · Screen 11 · **Dev A** · P0
-
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| POST | `/trips/{id}/share/` | ✅ | set `is_public=True`, return share URL |
-| DELETE | `/trips/{id}/share/` | ✅ | revoke |
-| POST | `/trips/{id}/share/regenerate/` | ✅ | new `share_token`, kills old links |
-| GET | `/public/trips/{share_token}/` | — | read-only public itinerary |
-| POST | `/public/trips/{share_token}/copy/` | ✅ | **Copy Trip** into my account |
-
-**POST `/trips/{id}/share/`**
-```json
-{ "success": true, "message": "Trip is now public.",
-  "data": { "is_public": true,
-            "share_token": "9f1c8ab2-4d21-4a77-9f3e-2b7c5d1a9e4f",
-            "share_url": "http://localhost:3000/trips/shared/9f1c8ab2-4d21-4a77-9f3e-2b7c5d1a9e4f",
-            "views_count": 0 } }
-```
-
-**GET `/public/trips/{share_token}/`** — `AllowAny`. `404` when the trip is not
-public or is soft-deleted. Increments `views_count`.
-
-Payload is the itinerary shape with two differences: `owner` is reduced to
-`{first_name, avatar}`, and `total_budget` / `remaining` are **omitted entirely**.
-No PII, no financial targets.
-
-**POST `/public/trips/{share_token}/copy/`** — `start_date` (optional, rebase),
-`name` (optional override)
-
-Deep-copies trip → stops → trip activities → expenses into the caller's account.
-Sets `copied_from`, resets `is_public=False` and `status=DRAFT`, generates a fresh
-`share_token`, and shifts every date so day 1 lands on `start_date` when supplied
-(decision D9).
+`share_url` points at the **frontend** (`FRONTEND_BASE_URL` + `/trips/shared/{token}`),
+not at this API, and is populated whether or not the trip is public. `cities` is
+the city names in stop order — the "Bir · Manali · Kasol" line on a card.
+`duration_days` counts both ends: the 14th to the 24th is 11 days. Stop `nights`
+is the one range in the project **not** counted inclusively — the 15th to the
+18th is 3 nights, because that is what a hotel booking means.
 
 ---
 
-## 8. Community — `/community/` · mockup Screen 10 · **Dev B · P2**
+### POST `/trips/` · `TripViewSet.create`
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/community/posts/` | cursor-paginated feed. `?search=`, `?city=`, `?activity_type=`, `?user=`, `?trip=`, `?ordering=-created_at\|-likes_count` |
-| POST | `/community/posts/` | `title`*, `body`*, `trip`, `city`, `activity`, `cover_image` |
-| GET | `/community/posts/{id}/` | detail |
-| PATCH | `/community/posts/{id}/` | author only |
-| DELETE | `/community/posts/{id}/` | author only |
-| POST | `/community/posts/{id}/like/` | like |
-| DELETE | `/community/posts/{id}/like/` | unlike |
-| GET | `/community/posts/{id}/comments/` | paginated, nested replies |
-| POST | `/community/posts/{id}/comments/` | `body`*, `parent` |
-| DELETE | `/community/comments/{id}/` | author only |
+**Payload** — `TripWriteSerializer`
+
+| Field | Type | Req | Notes |
+|---|---|:--:|---|
+| `name` | string, max 150 | yes | |
+| `description` | string | no | |
+| `start_date` | date | yes | a past date is allowed — users log trips they already took |
+| `end_date` | date | yes | must be on or after `start_date` |
+| `status` | `DRAFT` / `CANCELLED` | no | anything else is overwritten from the dates |
+| `total_budget` | decimal | no | nullable |
+| `currency` | 3-char ISO | no | uppercased; default `INR` |
+| `cover_photo` | image | no | prefer the dedicated multipart endpoint |
+
+Not writable here: `is_public` (sharing has its own endpoints — not implemented
+yet), `share_token`, `views_count`, `copied_from`.
 
 ```json
 {
-  "success": true, "message": null,
-  "data": {
-    "results": [
-      { "id": 220, "title": "Bir Billing was unreal",
-        "body": "Flew at sunrise, cheapest adventure of the trip...",
-        "cover_image": "http://.../posts/220.jpg",
-        "author": { "id": 7, "first_name": "Riya", "avatar": "http://.../7.jpg" },
-        "city": { "id": 61, "name": "Bir", "country_name": "India" },
-        "trip": { "id": 31, "name": "Himachal Winter", "share_url": "http://..." },
-        "likes_count": 34, "comments_count": 6, "is_liked_by_me": false,
-        "created_at": "2026-08-20T06:15:00Z" }
-    ],
-    "pagination": { "page_size": 20,
-                    "next": "http://localhost:8000/api/v1/community/posts/?cursor=cD0yMDI2LTA4",
-                    "previous": null }
-  }
+  "name": "Himachal in spring",
+  "description": "Bir, Manali, Kasol.",
+  "start_date": "2026-03-14",
+  "end_date": "2026-03-24",
+  "status": "DRAFT",
+  "total_budget": "60000.00",
+  "currency": "INR"
 }
+```
+
+**201** — the **detail** shape, message `Trip created successfully.`
+
+---
+
+### GET `/trips/{id}/` · `TripViewSet.retrieve`
+
+`TripDetailSerializer` — every list field **plus**:
+
+```json
+{ "success": true, "message": null, "data": {
+  "id": 55, "name": "Himachal in spring", "...": "all TripListSerializer fields",
+  "share_token": "8f2c9d64-1a3e-4b77-9c50-2f6b1d0e77aa",
+  "views_count": 0,
+  "copied_from": null,
+  "updated_at": "2026-08-20T14:03:19Z",
+  "stops": [
+    { "id": 91, "title": "Manali",
+      "city": { "id": 12, "name": "Manali", "state": "Himachal Pradesh",
+                "country_name": "India", "image_url": "https://cdn.example.com/manali.jpg" },
+      "start_date": "2026-03-15", "end_date": "2026-03-18",
+      "nights": 3, "order": 1, "budget": "18000.00",
+      "activities_count": 1, "notes": "",
+      "activities": [ { "id": 3312, "trip_stop": 91,
+                        "title": "Solang Valley paragliding", "activity_id": 501,
+                        "activity_type": "ADVENTURE", "day_date": "2026-03-16",
+                        "start_time": "09:30:00", "end_time": "11:00:00",
+                        "duration_minutes": 90, "cost": "2500.00",
+                        "currency": "INR", "order": 1, "notes": "" } ] }
+  ] } }
 ```
 
 ---
 
-## 9. Admin API — `/api/v1/admin/` · Screen 13 · P1
+### PUT · PATCH `/trips/{id}/` · `TripViewSet.update`
 
-Every route is gated by `core.permissions.IsAdminRole` (`is_staff` **or**
-`role == "ADMIN"`). Separate `urls_admin.py` + separate serializers per app, so a
-user endpoint can never inherit admin field exposure. Non-admin → `403`.
+Same payload as create; `PATCH` is partial. Both validate against the merged
+instance, so moving only one of the two dates is still checked.
 
-### 9.1 User management · **Dev B**
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/admin/users/` | `?search=`, `?is_active=`, `?role=`, `?country=`, `?created_after=`, `?ordering=` |
-| GET | `/admin/users/{id}/` | detail + counts |
-| PATCH | `/admin/users/{id}/` | `is_active`, `role`, `is_staff` |
-| DELETE | `/admin/users/{id}/` | soft delete |
-| POST | `/admin/users/{id}/restore/` | undo |
-| GET | `/admin/users/{id}/trips/` | that user's trips |
+**Extra rule** — a date change that would strand a stop outside its own trip is
+rejected, because the itinerary only emits dates inside the trip range and those
+days would silently vanish from the screen:
 
 ```json
-{
-  "success": true, "message": null,
-  "data": {
-    "results": [
-      { "id": 7, "email": "riya@example.com", "full_name": "Riya Sharma",
-        "role": "USER", "is_active": true, "is_email_verified": false,
-        "city_name": "Ahmedabad", "country_name": "India",
-        "trips_count": 9, "posts_count": 3,
-        "last_login": "2026-08-21T18:02:00Z",
-        "created_at": "2026-08-01T09:12:00Z" }
-    ],
-    "pagination": { "count": 1240, "page": 1, "pages": 62, "page_size": 20,
-                    "has_next": true, "has_previous": false,
-                    "next": "http://localhost:8000/api/v1/admin/users/?page=2",
-                    "previous": null }
-  }
-}
+{ "success": false,
+  "message": "These stops would fall outside the new dates: Manali, Kasol. Move or remove them first.",
+  "errors": { "fields": { "start_date": ["These stops would fall outside the new dates: Manali, Kasol. Move or remove them first."] } } }
 ```
 
-### 9.2 Trip moderation · **Dev B**
+**200** — the detail shape, message `Trip updated.`
 
-| Path | Methods |
-|---|---|
-| `/admin/trips/` | GET — `?user=`, `?status=`, `?is_public=`, `?created_after=` |
-| `/admin/trips/{id}/` | GET, DELETE |
+---
 
-### 9.3 Master-data CRUD · **Dev B**
+### DELETE `/trips/{id}/` · `TripViewSet.destroy`
 
-Reads already exist on the user API; the admin tree adds writes.
+Soft delete. **204**, empty body.
 
-| Path | Methods |
-|---|---|
-| `/admin/countries/`, `/admin/countries/{id}/` | GET POST PATCH DELETE |
-| `/admin/cities/`, `/admin/cities/{id}/` | GET POST PATCH DELETE |
-| `/admin/activity-categories/`, `/{id}/` | GET POST PATCH DELETE |
-| `/admin/activities/`, `/admin/activities/{id}/` | GET POST PATCH DELETE |
-| `/admin/posts/`, `/admin/posts/{id}/` | GET, PATCH (`is_flagged`, `is_published`), DELETE |
+---
 
-### 9.4 Analytics · **Dev B**
+### POST `/trips/{id}/cover-photo/` · `TripViewSet.cover_photo`
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/admin/analytics/overview/` | KPI tiles |
-| GET | `/admin/analytics/popular-cities/` | `?limit=10&period=30d` |
-| GET | `/admin/analytics/popular-activities/` | `?limit=10&period=30d` |
-| GET | `/admin/analytics/user-growth/` | `?period=30d&interval=day` |
-| GET | `/admin/analytics/trip-trends/` | trips created over time + avg budget |
-| GET | `/admin/analytics/engagement/` | from `ActivityLog` |
+`multipart/form-data`, single required field `cover_photo` (image).
 
-`period` ∈ `7d`, `30d`, `90d`, `all`. **Not paginated** — bounded top-N / fixed windows.
+**200** — the full detail shape, message `Cover photo updated.`
 
-**GET `/admin/analytics/overview/`**
+---
+
+### `/trips/{trip_id}/stops/` · `TripStopListCreateView`
+
+#### GET
+
+**200** — paginated `TripStopSerializer` rows, ordered by `order`, with the city
+and its country joined.
+
+#### POST — `TripStopWriteSerializer`
+
+| Field | Type | Req | Notes |
+|---|---|:--:|---|
+| `city` | int (City id) | no | nullable — a stop can be a place with no catalog city |
+| `title` | string, max 120 | no | falls back to the city name on read |
+| `start_date` | date | yes | must sit inside the trip's range |
+| `end_date` | date | yes | on or after `start_date`, inside the trip's range |
+| `budget` | decimal | no | nullable |
+| `notes` | string | no | |
+
+`order` is **not accepted** — it is assigned server-side on create and changed
+only through the reorder endpoint, which is the one place that can keep the whole
+sequence consistent in a single statement.
+
 ```json
-{
-  "success": true, "message": null,
-  "data": {
-    "users":  { "total": 1240, "active": 1198, "new_this_period": 86, "growth_pct": 7.4 },
-    "trips":  { "total": 3410, "created_this_period": 214, "public": 512,
-                "avg_stops_per_trip": 3.2 },
-    "budget": { "avg_trip_budget": "51200.00", "currency": "INR",
-                "total_planned_value": "174592000.00" },
-    "content":{ "posts": 640, "comments": 2180 },
-    "period": "30d"
-  }
-}
+{ "city": 12, "title": "", "start_date": "2026-03-15",
+  "end_date": "2026-03-18", "budget": "18000.00", "notes": "" }
 ```
 
-**GET `/admin/analytics/popular-cities/`**
-```json
-{
-  "success": true, "message": null,
-  "data": {
-    "period": "30d",
-    "results": [
-      { "city_id": 88, "city_name": "Paris", "country_name": "France",
-        "trip_count": 214, "unique_users": 189, "avg_stay_days": 4.1,
-        "share_pct": 12.4 }
-    ]
-  }
-}
-```
+**201** `{"success": true, "message": "Stop added.", "data": { "...": "TripStop" } }`
 
-**GET `/admin/analytics/user-growth/`** — zero-filled for gap days so the chart has
-no holes.
+**400** — outside the trip:
+
 ```json
-{
-  "success": true, "message": null,
-  "data": {
-    "period": "30d", "interval": "day",
-    "series": [
-      { "date": "2026-07-24", "new_users": 3, "cumulative": 1154 },
-      { "date": "2026-07-25", "new_users": 0, "cumulative": 1154 }
-    ],
-    "totals": { "new_users": 86, "growth_pct": 7.4 }
-  }
-}
+{ "success": false,
+  "message": "A stop must sit inside the trip's dates (2026-03-14 to 2026-03-24).",
+  "errors": { "fields": { "start_date": ["A stop must sit inside the trip's dates (2026-03-14 to 2026-03-24)."] } } }
 ```
 
 ---
 
-## 10. Route count
+### GET · PUT · PATCH · DELETE `/trips/{trip_id}/stops/{id}/` · `TripStopDetailView`
 
-| Module | Routes | Owner | Priority |
-|---|---|---|---|
-| Auth | 7 | **A** | P0 |
-| Profile | 8 | **A** | P0 |
-| Trips — CRUD, stops, trip activities, itinerary, calendar, share/copy | 22 | **A** | P0 |
-| Budget + expenses | 6 | **A** | P0 |
-| Geo | 4 + 3 | **B** | P0 |
-| Activities catalog | 4 | **B** | P0 |
-| Dashboard | 1 | **B** | P0 |
-| Community | 10 | **B** | P2 |
-| Admin — users + trips | 8 | **B** | P1 |
-| Admin — master data | 15 | **B** | P1 |
-| Admin — analytics | 6 | **B** | P1 |
-| **Total** | **~94** | | |
+Same write payload as POST, same date rules. `PATCH` is partial.
 
-**Dev A ships ~43 routes** (all P0 — Screens 1, 3, 4, 5, 6, 9, 10, 11, 12).
-**Dev B ships ~51** (Screens 2, 7, 8, 13, Community; 29 of them admin-only P1).
-P0 across both is ~52 routes.
+- **200** on update, message `Stop updated.`
+- **204** on delete (soft), empty body
 
 ---
 
-## 11. Frontend integration notes
+### POST `/trips/{trip_id}/stops/reorder/` · `TripStopReorderView`
 
-1. **Every list is paginated.** `data.results` + `data.pagination`. Always.
-2. **Enums are uppercase strings.** `"ONGOING"`, `"ADVENTURE"`, `"TRANSPORT"`.
-   Render your own labels; don't string-match on display text.
-3. **Money is a decimal string**, not a number — `"48200.00"`. Parse deliberately;
-   don't let JS float arithmetic near it.
-4. **Dates are naive `YYYY-MM-DD`.** No timezone on trip/stop/activity dates. Only
-   `created_at`/`updated_at` carry `Z`.
-5. **`401` → refresh once, then log out.** `POST /auth/token/refresh/` with the
-   refresh token. Tokens rotate: store the new refresh token from the response.
-6. **Empty days are returned, not omitted**, in both itinerary and calendar.
-7. **Chart endpoints are pre-aggregated.** `percentage` and `share_pct` are already
-   computed; series are zero-filled.
+Drag-to-reorder. One `bulk_update` inside a transaction — there is deliberately
+no `UniqueConstraint(trip, order)`, because SQLite has no deferred constraints
+and a reorder would violate it mid-update.
+
+**Payload**
+
+```json
+{ "items": [ { "id": 91, "order": 1 },
+             { "id": 92, "order": 2 },
+             { "id": 93, "order": 3 } ] }
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `items` | array | non-empty |
+| `items[].id` | int | must belong to this trip |
+| `items[].order` | int | minimum 1 |
+
+**200** — the **whole reordered list**, re-read through the selector so the city
+rows are joined rather than lazy-loaded:
+
+```json
+{ "success": true, "message": "Stops reordered.",
+  "data": [ { "id": 91, "order": 1, "...": "TripStop" } ] }
+```
+
+**400** — foreign ids:
+
+```json
+{ "success": false, "message": "These stops do not belong to this trip: [404].",
+  "errors": { "fields": { "items": ["These stops do not belong to this trip: [404]."] } } }
+```
+
+---
+
+### `/trips/{trip_id}/stops/{stop_id}/activities/` · `TripActivityListCreateView`
+
+#### GET
+
+**200** — paginated `TripActivity` rows for that stop.
+
+#### POST — `TripActivityCreateSerializer`
+
+| Field | Type | Req | Notes |
+|---|---|:--:|---|
+| `activity` | int (catalog Activity id) | XOR | exactly one of `activity` / `custom_title` |
+| `custom_title` | string, max 150 | XOR | free text for something not in the catalog |
+| `day_date` | date | yes | must sit inside the **stop's** range |
+| `start_time` | time | no | |
+| `end_time` | time | no | must be after `start_time` when both are given |
+| `cost` | decimal | no | omitted + `activity` given → snapshotted from the catalog row |
+| `duration_minutes` | int | no | |
+| `notes` | string | no | |
+
+`currency` is **not accepted**: a trip has one currency and its children inherit
+it. Taking the catalog row's currency would let one trip hold two, and the budget
+sums children without converting.
+
+```json
+{ "activity": 501, "day_date": "2026-03-16",
+  "start_time": "09:30:00", "end_time": "11:00:00", "notes": "" }
+```
+
+```json
+{ "custom_title": "Coffee at Johnson's", "day_date": "2026-03-17",
+  "cost": "450.00", "duration_minutes": 60 }
+```
+
+**201** `{"success": true, "message": "Activity added.", "data": { "...": "TripActivity" } }`
+
+**400** — both or neither:
+
+```json
+{ "success": false,
+  "message": "Provide either `activity` (a catalog id) or `custom_title`, not both and not neither.",
+  "errors": { "fields": { "custom_title": ["Provide either `activity` (a catalog id) or `custom_title`, not both and not neither."] } } }
+```
+
+**400** — day outside the stop:
+
+```json
+{ "success": false,
+  "message": "This day is outside the stop's dates (2026-03-15 to 2026-03-18).",
+  "errors": { "fields": { "day_date": ["This day is outside the stop's dates (2026-03-15 to 2026-03-18)."] } } }
+```
+
+---
+
+### GET · PUT · PATCH · DELETE `/trip-activities/{id}/` · `TripActivityDetailView`
+
+**Flat on purpose**: calendar drag-and-drop moves an item between days *and*
+stops, so a nested URL would encode a parent that is about to change. Ownership
+resolves through `trip_stop__trip__user`.
+
+#### PATCH — `TripActivityUpdateSerializer`
+
+| Field | Type | Notes |
+|---|---|---|
+| `day_date` | date | must stay inside the current stop's range |
+| `start_time` | time | |
+| `end_time` | time | after `start_time` |
+| `cost` | decimal | |
+| `duration_minutes` | int | |
+| `order` | int | |
+| `notes` | string | |
+
+`activity` and `custom_title` are deliberately absent — swapping one for the
+other is a different activity, and allowing it here is how a row ends up with
+both or neither and trips the database constraint. To move an activity to a
+**different stop**, use the reorder endpoint.
+
+**200** `{"success": true, "message": "Activity updated.", "data": { "...": "TripActivity" } }`
+**204** on delete (soft), empty body.
+
+---
+
+### POST `/trips/{trip_id}/activities/reorder/` · `TripActivityReorderView`
+
+Reorders **and** moves activities between days or stops, in one `bulk_update`.
+
+**Payload**
+
+| Field | Type | Req | Notes |
+|---|---|:--:|---|
+| `items[].id` | int | yes | must belong to this trip |
+| `items[].order` | int | yes | minimum 1 |
+| `items[].day_date` | date | no | send only when the day changed |
+| `items[].trip_stop` | int | no | send only when the stop changed; must belong to this trip |
+
+Dragging inside one day sends neither optional field.
+
+```json
+{ "items": [
+    { "id": 3312, "order": 2 },
+    { "id": 3313, "order": 1, "day_date": "2026-03-17" },
+    { "id": 3314, "order": 3, "day_date": "2026-03-20", "trip_stop": 92 } ] }
+```
+
+**200**
+
+```json
+{ "success": true, "message": "Activities reordered.",
+  "data": [ { "id": 3313, "order": 1, "...": "TripActivity" } ] }
+```
+
+**400** cases, all under `errors.fields.items`:
+
+- `These activities do not belong to this trip: [999].`
+- `Stop 404 does not belong to this trip.`
+- `Activity 3314 would land on 2026-03-30, outside stop 92 (2026-03-19 to 2026-03-22).`
+
+---
+
+### GET `/trips/{trip_id}/itinerary/` · `TripItineraryView`
+
+Screen 10. **Not paginated** — a trip is a bounded object and the screen renders
+all of it at once.
+
+| Query | Values | Default |
+|---|---|---|
+| `view` | `day` / `stop` | `day` |
+
+**Every date in the trip range is returned, including empty ones** — the
+frontend renders placeholders and does not compute gaps. `stop` is `null` on a
+day no stop covers. Where two stops overlap a date the **lower `order`** wins;
+overlap is legal, since a travel day can belong to the stop you are leaving.
+
+`days` is present for `?view=day` and `stops` for `?view=stop` — the other key is
+**absent**, not null, so the client branches on the parameter it sent.
+
+#### `?view=day` (default) — **200**
+
+```json
+{ "success": true, "message": null, "data": {
+  "trip": { "id": 55, "name": "Himachal in spring",
+            "start_date": "2026-03-14", "end_date": "2026-03-24",
+            "duration_days": 11, "currency": "INR" },
+  "days": [
+    { "date": "2026-03-14", "day_number": 1, "stop": null,
+      "activities": [], "day_total_cost": "0.00" },
+    { "date": "2026-03-16", "day_number": 3,
+      "stop": { "id": 91, "title": "Manali",
+                "city": { "id": 12, "name": "Manali", "state": "Himachal Pradesh",
+                          "country_name": "India",
+                          "image_url": "https://cdn.example.com/manali.jpg" },
+                "order": 1 },
+      "activities": [ { "id": 3312, "trip_stop": 91,
+                        "title": "Solang Valley paragliding", "activity_id": 501,
+                        "activity_type": "ADVENTURE", "day_date": "2026-03-16",
+                        "start_time": "09:30:00", "end_time": "11:00:00",
+                        "duration_minutes": 90, "cost": "2500.00",
+                        "currency": "INR", "order": 1, "notes": "" } ],
+      "day_total_cost": "2500.00" }
+  ],
+  "totals": { "activities_cost": "31200.00",
+              "expenses_cost": "17000.00",
+              "grand_total": "48200.00" } } }
+```
+
+#### `?view=stop` — **200**
+
+Same `trip` and `totals`; `days` is replaced by `stops`. Days no stop covers land
+in a trailing group with `stop: null`, so no day is ever dropped.
+
+```json
+{ "success": true, "message": null, "data": {
+  "trip": { "...": "as above" },
+  "stops": [
+    { "stop": { "id": 91, "title": "Manali", "city": { "...": "CityMini" }, "order": 1 },
+      "days": [ { "date": "2026-03-15", "day_number": 2, "stop": { "...": "same stop" },
+                  "activities": [], "day_total_cost": "0.00" } ],
+      "stop_total_cost": "12400.00" },
+    { "stop": null,
+      "days": [ { "date": "2026-03-14", "day_number": 1, "stop": null,
+                  "activities": [], "day_total_cost": "0.00" } ],
+      "stop_total_cost": "0.00" }
+  ],
+  "totals": { "...": "as above" } } }
+```
+
+---
+
+## 7. `apps/budget`
+
+Code: [views.py](../apps/budget/views.py) ·
+[serializers.py](../apps/budget/serializers.py) ·
+[filters.py](../apps/budget/filters.py) ·
+[selectors.py](../apps/budget/selectors.py) ·
+[services.py](../apps/budget/services.py) ·
+[urls.py](../apps/budget/urls.py)
+
+Both prefixes hang off a trip: `trip_id` is a **parent**, not a filter, and it
+resolves through the same `TripScopedMixin` as trips — a trip that is not yours
+is a 404.
+
+### `category` values
+
+From [constants.py](../apps/budget/constants.py):
+
+`TRANSPORT` · `STAY` · `ACTIVITY` · `MEALS` · `SHOPPING` · `OTHER`
+
+> **`ACTIVITY` has two sources.** The bucket is `SUM(TripActivity.cost)` **plus**
+> `Expense` rows filed under `ACTIVITY`. The sum is written in exactly one place,
+> `services.trip_budget_breakdown`. Do not re-derive it.
+
+---
+
+### `/trips/{trip_id}/expenses/` · `ExpenseListCreateView`
+
+#### GET
+
+| Query | Type | Notes |
+|---|---|---|
+| `category` | string list | comma-separated |
+| `trip_stop` | int | |
+| `is_estimated` | bool | |
+| `search` | string | `title`, `notes` |
+| `ordering` | `incurred_on` / `amount` / `created_at` | default `-incurred_on,-created_at` |
+
+**200** — paginated `ExpenseSerializer` rows:
+
+```json
+{ "success": true, "message": null, "data": {
+  "results": [
+    { "id": 771,
+      "category": "STAY",
+      "category_label": "Stay",
+      "title": "Hostel, 3 nights",
+      "amount": "5400.00",
+      "currency": "INR",
+      "trip_stop": 91,
+      "incurred_on": "2026-03-15",
+      "is_estimated": true,
+      "notes": "",
+      "created_at": "2026-08-20T12:00:00Z" }
+  ],
+  "pagination": { "count": 1, "page": 1, "pages": 1, "page_size": 20,
+                  "has_next": false, "has_previous": false,
+                  "next": null, "previous": null } } }
+```
+
+#### POST — `ExpenseWriteSerializer`
+
+| Field | Type | Req | Notes |
+|---|---|:--:|---|
+| `category` | choice | yes | see the list above |
+| `title` | string, max 150 | yes | |
+| `amount` | decimal | yes | |
+| `trip_stop` | int | no | nullable; must belong to **this** trip |
+| `incurred_on` | date | no | nullable; must sit inside the trip's dates |
+| `is_estimated` | bool | no | default `true` |
+| `notes` | string | no | |
+
+`currency` is absent on purpose — inherited from the trip, because the budget
+adds these amounts up without converting.
+
+```json
+{ "category": "STAY", "title": "Hostel, 3 nights", "amount": "5400.00",
+  "trip_stop": 91, "incurred_on": "2026-03-15", "is_estimated": true, "notes": "" }
+```
+
+**201** `{"success": true, "message": "Expense added.", "data": { "...": "Expense" } }`
+
+**400** cases:
+
+```json
+{ "success": false, "message": "That stop does not belong to this trip.",
+  "errors": { "fields": { "trip_stop": ["That stop does not belong to this trip."] } } }
+```
+
+```json
+{ "success": false,
+  "message": "This day is outside the trip's dates (2026-03-14 to 2026-03-24).",
+  "errors": { "fields": { "incurred_on": ["This day is outside the trip's dates (2026-03-14 to 2026-03-24)."] } } }
+```
+
+A day outside the trip would never appear in the budget's `by_day` series, so the
+money would be in the total but on no chart — hence the check.
+
+---
+
+### GET · PUT · PATCH · DELETE `/trips/{trip_id}/expenses/{id}/` · `ExpenseDetailView`
+
+Same write payload; `PATCH` is partial.
+
+- **200** on update, message `Expense updated.`
+- **204** on delete (soft), empty body
+
+---
+
+### GET `/trips/{trip_id}/budget/` · `TripBudgetView`
+
+Screen 9, whole. **Not paginated** — every part of the response is bounded by the
+trip: one bucket per category, one row per stop, one row per day.
+
+Labels and percentages are **precomputed** — the frontend should not divide to
+draw a pie. Only non-zero buckets are returned, sorted by amount descending, so
+the chart has no empty slices to filter out. `by_day` covers **every date in the
+trip range**, including zero-spend days.
+
+**200**
+
+```json
+{ "success": true, "message": null, "data": {
+  "currency": "INR",
+  "total_budget": "60000.00",
+  "grand_total": "48200.00",
+  "remaining": "11800.00",
+  "is_over_budget": false,
+  "avg_cost_per_day": "4381.82",
+  "breakdown": [
+    { "category": "ACTIVITY", "label": "Activities", "amount": "31200.00", "percentage": 64.7 },
+    { "category": "STAY",     "label": "Stay",       "amount": "12000.00", "percentage": 24.9 },
+    { "category": "MEALS",    "label": "Meals",      "amount": "5000.00",  "percentage": 10.4 }
+  ],
+  "by_stop": [
+    { "stop_id": 91, "title": "Manali", "budget": "18000.00",
+      "spent": "16400.00", "is_over_budget": false },
+    { "stop_id": 92, "title": "Kasol", "budget": null,
+      "spent": "9200.00", "is_over_budget": false }
+  ],
+  "by_day": [
+    { "date": "2026-03-14", "amount": "0.00",    "is_over_budget": false },
+    { "date": "2026-03-15", "amount": "7100.00", "is_over_budget": true }
+  ],
+  "alerts": [
+    { "type": "OVERBUDGET_DAY", "date": "2026-03-15",
+      "message": "2026-03-15 exceeds the average daily budget by 30%." }
+  ] } }
+```
+
+**Field notes**
+
+| Field | Type | Notes |
+|---|---|---|
+| `total_budget` | string / `null` | straight off the trip |
+| `grand_total` | string | activities + expenses, from the one formula |
+| `remaining` | string / `null` | `null` when the trip has no `total_budget` |
+| `avg_cost_per_day` | string | `grand_total / duration_days` |
+| `breakdown[].percentage` | **float** | already a percentage, 1 decimal |
+| `by_stop[].budget` | string / `null` | the stop's own budget |
+| `by_day[].is_over_budget` | bool | against the daily allowance, `total_budget / duration_days` |
+| `alerts[].type` | `OVERBUDGET_TRIP` / `OVERBUDGET_DAY` | both need a `total_budget`; the trip-wide alert has `date: null` and sorts first |
+
+A day alert only fires past a 10% tolerance over the daily allowance
+(`DAY_ALERT_TOLERANCE`), so a rounding-level overshoot does not spam the screen.
+With no `total_budget` set, `remaining` is `null`, `is_over_budget` is `false`
+everywhere and `alerts` is empty.
+
+---
+
+## 8. Not implemented yet
+
+These resolve as URL includes but have empty `urlpatterns`, so nothing under
+them is routable. `config/api_urls.py` and `config/admin_urls.py` wired every
+include up front on purpose — adding an endpoint means editing only the app's
+own `urls.py`.
+
+| Folder | Planned surface | Status |
+|---|---|---|
+| [apps/dashboard/](../apps/dashboard/) | `GET /dashboard/` — one aggregated home-screen call | empty |
+| [apps/community/](../apps/community/) | `/community/**` — posts, comments, likes | empty (P2, first on the cut list) |
+| [apps/analytics/](../apps/analytics/) | `/admin/analytics/**` + the `ActivityLog` middleware | empty |
+| every `urls_admin.py` | the whole `/api/v1/admin/**` tree — users, trip moderation, master-data CRUD, analytics | **all empty** |
+
+Also absent from the trips app, though `docs/API.md` specifies them:
+
+- `POST` / `DELETE /trips/{id}/share/` — `is_public` is not writable anywhere in the current code
+- `GET /public/trips/{share_token}/` — the public share page
+- `POST /trips/{id}/copy/` — copy-with-date-rebase (`copied_from` exists on the model but is never set)
+- `GET /trips/{id}/calendar/` — the calendar view
+
+`Trip.share_token` and `Trip.share_url` are populated and readable on the trip
+detail shape, but no endpoint consumes them yet.
+
+When adding admin views, inherit
+[`core.mixins.AdminOnlyMixin`](../core/mixins.py) on **every one**. DRF resolves
+permission classes per view and middleware cannot see a JWT user, so a view that
+forgets it falls back to the global `IsAuthenticated` — meaning any logged-in
+user reaches an admin endpoint.
