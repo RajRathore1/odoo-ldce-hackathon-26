@@ -28,6 +28,10 @@ export class ApiError extends Error {
 // problems under errors.fields as arrays. Flatten to one message per field so
 // forms can bind straight to it.
 export async function readEnvelope<T>(response: Response): Promise<T> {
+  // DELETE answers 204 with no body at all, which is a success, not a parse
+  // failure.
+  if (response.status === 204) return null as T;
+
   let body: Envelope<T> | null = null;
 
   try {
