@@ -51,3 +51,7 @@ env/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Django
+media/
+staticfiles/
