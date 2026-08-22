@@ -4,11 +4,18 @@ const money = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 0,
 });
 
-const day = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+// Trip dates are plain YYYY-MM-DD, so format them in UTC — otherwise the
+// server and the browser can disagree by a day and hydration blows up.
+const day = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
 const dayWithYear = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
   year: "numeric",
+  timeZone: "UTC",
 });
 
 export function formatMoney(amount: number) {
