@@ -1,49 +1,92 @@
-import { notFound } from "next/navigation";
-import { ItineraryBudgetView } from "@/components/itinerary-budget-view";
-import { StatusBadge } from "@/components/ui/badge";
-import { formatDateRange, formatMoney } from "@/lib/format";
-import { itineraries, trips } from "@/lib/mock-data";
+"use client";
 
-export default async function TripItineraryPage({
+import { use } from "react";
+import { ItineraryBudgetView } from "@/components/itinerary-budget-view";
+import { ErrorBlock, LoadingBlock } from "@/components/page-state";
+import { TripBudgetPanel } from "@/components/trip-budget-panel";
+import { StatusBadge } from "@/components/ui/badge";
+import { toItineraryDays, toTrip, type ItineraryDto } from "@/lib/api/adapters";
+import type { BudgetDto, ExpenseDto } from "@/lib/api/budget-types";
+import type { Paginated, StopDto, TripDto } from "@/lib/api/trips-service";
+import { useApi } from "@/lib/api/use-api";
+import { formatDateRange, formatMoney } from "@/lib/format";
+
+export default function TripPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const trip = trips.find((item) => item.id === id);
+  const { id } = use(params);
 
-  if (!trip) notFound();
+  const trip = useApi<TripDto>(`/trips/${id}/`);
+  const itinerary = useApi<ItineraryDto>(`/trips/${id}/itinerary/`);
+  const budget = useApi<BudgetDto>(`/trips/${id}/budget/`);
+  const expenses = useApi<Paginated<ExpenseDto>>(
+    `/trips/${id}/expenses/?page_size=100`,
+  );
+  const stops = useApi<Paginated<StopDto>>(`/trips/${id}/stops/?page_size=100`);
 
-  const days = itineraries[trip.id] ?? [];
+  function refreshAfterChange() {
+    budget.reload();
+    expenses.reload();
+    itinerary.reload();
+  }
+
+  if (trip.loading) return <LoadingBlock label="Loading trip" />;
+  if (trip.error) {
+    return <ErrorBlock message={trip.error} onRetry={trip.reload} />;
+  }
+  if (!trip.data) return null;
+
+  const dto = trip.data;
+  const view = toTrip(dto);
+  const place = [view.city, view.country].filter(Boolean).join(", ");
 
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-text-muted">
-            {trip.city}, {trip.country}
-          </p>
+          {place && (
+            <p className="text-sm font-medium text-text-muted">{place}</p>
+          )}
           <h1 className="mt-1 font-heading text-3xl font-semibold sm:text-4xl">
-            {trip.title}
+            {view.title}
           </h1>
           <p className="mt-2 text-text-muted">
-            {formatDateRange(trip.startDate, trip.endDate)} · {trip.stops}{" "}
-            {trip.stops === 1 ? "stop" : "stops"}
+            {formatDateRange(view.startDate, view.endDate)} · {view.stops}{" "}
+            {view.stops === 1 ? "stop" : "stops"}
           </p>
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          <StatusBadge status={trip.status} />
+          <StatusBadge status={view.status} />
           <p className="text-sm text-text-muted">
             Planned budget{" "}
             <span className="font-semibold text-primary">
-              {formatMoney(trip.budget)}
+              {formatMoney(view.budget, dto.currency)}
             </span>
           </p>
         </div>
       </div>
 
-      <ItineraryBudgetView days={days} />
+      {itinerary.data && (
+        <ItineraryBudgetView days={toItineraryDays(itinerary.data)} />
+      )}
+
+      {budget.data && (
+        <TripBudgetPanel
+          tripId={id}
+          budget={budget.data}
+          expenses={expenses.data?.results ?? []}
+          stops={(stops.data?.results ?? []).map((stop) => ({
+            label: stop.title || stop.city.name,
+            value: String(stop.id),
+          }))}
+          tripStart={dto.start_date}
+          tripEnd={dto.end_date}
+          onChanged={refreshAfterChange}
+        />
+      )}
     </div>
   );
 }

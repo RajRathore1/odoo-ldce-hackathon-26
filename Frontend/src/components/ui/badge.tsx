@@ -65,12 +65,14 @@ const statusTone: Record<TripStatus, Tone> = {
   ongoing: "warning",
   upcoming: "info",
   completed: "success",
+  cancelled: "danger",
 };
 
 const statusLabel: Record<TripStatus, string> = {
   ongoing: "Ongoing",
   upcoming: "Upcoming",
   completed: "Completed",
+  cancelled: "Cancelled",
 };
 
 const statusIcon: Record<TripStatus, React.ReactNode> = {

@@ -1,58 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { PhotoPicker } from "@/components/photo-picker";
+import { useAuth } from "@/components/auth-provider";
+import { ErrorBlock, LoadingBlock } from "@/components/page-state";
+import { ProfileForm } from "@/components/profile-form";
 import { SectionHeader } from "@/components/section-header";
 import { TripCard } from "@/components/trip-card";
-import { Button } from "@/components/ui/button";
-import { Input, Select, Textarea } from "@/components/ui/field";
-import { trips } from "@/lib/mock-data";
+import { toTrip } from "@/lib/api/adapters";
+import type { CityDto, CountryDto } from "@/lib/api/geo-service";
+import type { Paginated, TripDto } from "@/lib/api/trips-service";
+import { useApi } from "@/lib/api/use-api";
 
-const countries = [
-  "India",
-  "Japan",
-  "Indonesia",
-  "United Arab Emirates",
-  "United Kingdom",
-  "United States",
-  "Other",
-].map((name) => ({ label: name, value: name }));
-
-const initialProfile = {
-  firstName: "Abhishek",
-  lastName: "Singh",
-  username: "abhishek.s",
-  email: "abhishek.singh@example.com",
-  phone: "+91 98765 43210",
-  city: "Ahmedabad",
-  country: "India",
-  about: "",
+type Stats = {
+  total_trips: number;
+  upcoming: number;
+  completed: number;
+  cities_visited: number;
 };
 
-type Profile = typeof initialProfile;
-
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<Profile>(initialProfile);
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const { user, refreshUser } = useAuth();
+  const stats = useApi<Stats>("/users/me/stats/");
+  const countries = useApi<Paginated<CountryDto>>("/countries/?page_size=100");
+  const cities = useApi<Paginated<CityDto>>("/cities/?page_size=100");
+  const trips = useApi<Paginated<TripDto>>("/trips/?page_size=100");
 
-  function update<K extends keyof Profile>(key: K, value: Profile[K]) {
-    setProfile((current) => ({ ...current, [key]: value }));
-    setSaved(false);
+  if (!user || countries.loading || cities.loading) {
+    return <LoadingBlock label="Loading your profile" />;
+  }
+  if (countries.error) {
+    return <ErrorBlock message={countries.error} onRetry={countries.reload} />;
   }
 
-  function handlePhotoChange(file: File | null) {
-    setPhoto(file ? URL.createObjectURL(file) : null);
-    setSaved(false);
-  }
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaved(true);
-  }
-
-  const preplanned = trips.filter((trip) => trip.status === "upcoming");
-  const previous = trips.filter((trip) => trip.status !== "upcoming");
+  const rows = (trips.data?.results ?? []).map(toTrip);
+  const preplanned = rows.filter((trip) => trip.status === "upcoming");
+  const previous = rows.filter((trip) => trip.status !== "upcoming");
 
   return (
     <div className="space-y-10">
@@ -66,84 +47,27 @@ export default function ProfilePage() {
         </p>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-6 rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8"
-      >
-        <PhotoPicker
-          name={`${profile.firstName} ${profile.lastName}`.trim() || "Traveller"}
-          preview={photo}
-          onChange={handlePhotoChange}
-        />
+      {stats.data && (
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Trips" value={stats.data.total_trips} />
+          <Stat label="Up-coming" value={stats.data.upcoming} />
+          <Stat label="Completed" value={stats.data.completed} />
+          <Stat label="Cities visited" value={stats.data.cities_visited} />
+        </dl>
+      )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            label="First Name"
-            autoComplete="given-name"
-            value={profile.firstName}
-            onChange={(event) => update("firstName", event.target.value)}
-          />
-          <Input
-            label="Last Name"
-            autoComplete="family-name"
-            value={profile.lastName}
-            onChange={(event) => update("lastName", event.target.value)}
-          />
-        </div>
-
-        <Input
-          label="Username"
-          autoComplete="username"
-          value={profile.username}
-          onChange={(event) => update("username", event.target.value)}
-        />
-
-        <Input
-          label="Email Address"
-          type="email"
-          autoComplete="email"
-          value={profile.email}
-          onChange={(event) => update("email", event.target.value)}
-        />
-
-        <Input
-          label="Phone Number"
-          type="tel"
-          autoComplete="tel"
-          value={profile.phone}
-          onChange={(event) => update("phone", event.target.value)}
-        />
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            label="City"
-            autoComplete="address-level2"
-            value={profile.city}
-            onChange={(event) => update("city", event.target.value)}
-          />
-          <Select
-            label="Country"
-            options={countries}
-            value={profile.country}
-            onChange={(event) => update("country", event.target.value)}
-          />
-        </div>
-
-        <Textarea
-          label="Additional Information"
-          placeholder="Favourite kind of trip, dietary needs, anything else we should know…"
-          hint="Optional"
-          value={profile.about}
-          onChange={(event) => update("about", event.target.value)}
-        />
-
-        <div className="flex items-center justify-end gap-3 border-t border-border pt-6">
-          {saved && (
-            <span className="text-sm font-medium text-success">Saved</span>
-          )}
-          <Button type="submit">Save changes</Button>
-        </div>
-      </form>
+      <ProfileForm
+        user={user}
+        onSaved={refreshUser}
+        countries={(countries.data?.results ?? []).map((country) => ({
+          label: country.name,
+          value: String(country.id),
+        }))}
+        cities={(cities.data?.results ?? []).map((city) => ({
+          label: `${city.name}, ${city.country.name}`,
+          value: String(city.id),
+        }))}
+      />
 
       <section>
         <SectionHeader
@@ -176,6 +100,15 @@ export default function ProfilePage() {
           <EmptyState message="No previous trips yet." />
         )}
       </section>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-4">
+      <dt className="text-sm text-text-muted">{label}</dt>
+      <dd className="mt-1 font-heading text-2xl font-semibold">{value}</dd>
     </div>
   );
 }

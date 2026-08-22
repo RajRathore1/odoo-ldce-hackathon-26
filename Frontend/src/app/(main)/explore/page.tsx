@@ -1,7 +1,17 @@
+"use client";
+
 import { Suspense } from "react";
 import { ExploreView } from "@/components/explore-view";
+import { ErrorBlock, LoadingBlock } from "@/components/page-state";
+import { toRegion } from "@/lib/api/adapters";
+import type { CityDto } from "@/lib/api/geo-service";
+import type { Paginated } from "@/lib/api/trips-service";
+import { useApi } from "@/lib/api/use-api";
 
 export default function ExplorePage() {
+  const { data, error, loading, reload } =
+    useApi<Paginated<CityDto>>("/cities/?page_size=100");
+
   return (
     <div className="space-y-8">
       <div>
@@ -14,9 +24,13 @@ export default function ExplorePage() {
         </p>
       </div>
 
-      <Suspense>
-        <ExploreView />
-      </Suspense>
+      {loading && <LoadingBlock label="Loading destinations" />}
+      {error && <ErrorBlock message={error} onRetry={reload} />}
+      {data && (
+        <Suspense>
+          <ExploreView regions={data.results.map(toRegion)} />
+        </Suspense>
+      )}
     </div>
   );
 }

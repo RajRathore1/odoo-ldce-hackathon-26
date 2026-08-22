@@ -1,20 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { FormAlert } from "@/components/form-alert";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { SectionHeader } from "@/components/section-header";
-import { regions, suggestions } from "@/lib/mock-data";
-import type { SelectOption } from "@/lib/types";
-
-const placeOptions: SelectOption[] = regions.map((region) => ({
-  label: `${region.name}, ${region.country}`,
-  value: region.id,
-}));
+import { api } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/envelope";
+import type { Region, SelectOption } from "@/lib/types";
 
 type Section = { id: string; label: string };
+type Suggestion = { id: string; label: string };
 
 let sectionSeed = 0;
 function nextSectionId() {
@@ -22,14 +20,54 @@ function nextSectionId() {
   return `section-${sectionSeed}`;
 }
 
-export function TripDetailsForm() {
+export function TripDetailsForm({ cities }: { cities: Region[] }) {
   const router = useRouter();
+  const placeOptions: SelectOption[] = cities.map((city) => ({
+    label: `${city.name}, ${city.country}`,
+    value: city.id,
+  }));
   const [title, setTitle] = useState("");
   const [placeId, setPlaceId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [sections, setSections] = useState<Section[]>([]);
+  const [loaded, setLoaded] = useState<{ cityId: string; items: Suggestion[] }>(
+    { cityId: "", items: [] },
+  );
+  const [alert, setAlert] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  // What people actually do in the selected city, straight from the catalog.
+  // The city is stored alongside the results so a slow response for a city the
+  // user has already moved on from is simply ignored.
+  useEffect(() => {
+    if (!placeId) return;
+
+    let active = true;
+
+    api<{ id: number; name: string }[]>(
+      `/activities/popular/?city=${placeId}&limit=12`,
+    )
+      .then((rows) => {
+        if (!active) return;
+        setLoaded({
+          cityId: placeId,
+          items: rows.map((row) => ({ id: String(row.id), label: row.name })),
+        });
+      })
+      .catch(() => {
+        if (active) setLoaded({ cityId: placeId, items: [] });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [placeId]);
+
+  const suggestionsReady = Boolean(placeId) && loaded.cityId === placeId;
+  const suggestions = suggestionsReady ? loaded.items : [];
 
   function toggleSuggestion(id: string, label: string) {
     setAdded((prev) => {
@@ -70,19 +108,55 @@ export function TripDetailsForm() {
     });
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push("/trips/new/itinerary");
+
+    if (endDate < startDate) {
+      setErrors({ end_date: "End date cannot be before the start date" });
+      return;
+    }
+
+    setAlert(null);
+    setErrors({});
+    setSaving(true);
+
+    // The chosen city becomes the description here; it turns into a real stop
+    // on the next screen, where each section carries its own city and dates.
+    const place = cities.find((city) => city.id === placeId);
+
+    try {
+      const trip = await api<{ id: number }>("/trips/", {
+        method: "POST",
+        body: {
+          name: title,
+          start_date: startDate,
+          end_date: endDate,
+          description: place ? `Around ${place.name}, ${place.country}` : "",
+        },
+      });
+      router.push(`/trips/new/itinerary?trip=${trip.id}`);
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setAlert(error.message);
+        setErrors(error.fields);
+      } else {
+        setAlert("Could not reach the server.");
+      }
+      setSaving(false);
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10">
+      <FormAlert message={alert} />
+
       <div className="grid gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm sm:grid-cols-2 sm:p-8">
         <Input
           label="Trip title"
           placeholder="Kerala backwaters, take two"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
+          error={errors.name}
           wrapperClassName="sm:col-span-2"
           required
         />
@@ -102,6 +176,7 @@ export function TripDetailsForm() {
           type="date"
           value={startDate}
           onChange={(event) => setStartDate(event.target.value)}
+          error={errors.start_date}
           required
         />
         <Input
@@ -110,6 +185,7 @@ export function TripDetailsForm() {
           value={endDate}
           min={startDate || undefined}
           onChange={(event) => setEndDate(event.target.value)}
+          error={errors.end_date}
           required
         />
       </div>
@@ -119,6 +195,23 @@ export function TripDetailsForm() {
           title="Suggestions for this trip"
           description="Tap to add places to visit or activities to perform, then fine-tune each one in the next step."
         />
+
+        {!placeId && (
+          <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-text-muted">
+            Pick a place above and we&apos;ll show what people do there.
+          </p>
+        )}
+
+        {placeId && !suggestionsReady && (
+          <p className="text-sm text-text-muted">Loading suggestions...</p>
+        )}
+
+        {suggestionsReady && suggestions.length === 0 && (
+          <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-text-muted">
+            Nothing listed for this city yet.
+          </p>
+        )}
+
         <div className="flex flex-wrap gap-2">
           {suggestions.map((suggestion) => {
             const isAdded = added.has(suggestion.id);
@@ -198,8 +291,8 @@ export function TripDetailsForm() {
       </section>
 
       <div className="flex justify-end gap-3 border-t border-border pt-6">
-        <Button type="submit" size="lg">
-          Continue to itinerary
+        <Button type="submit" size="lg" disabled={saving}>
+          {saving ? "Creating trip..." : "Continue to itinerary"}
         </Button>
       </div>
     </form>

@@ -6,6 +6,7 @@ export const statusFilters: SelectOption[] = [
   { label: "Ongoing", value: "ongoing" },
   { label: "Upcoming", value: "upcoming" },
   { label: "Completed", value: "completed" },
+  { label: "Cancelled", value: "cancelled" },
 ];
 
 export const groupOptions: SelectOption[] = [
@@ -60,6 +61,7 @@ const statusLabels: Record<TripStatus, string> = {
   ongoing: "Ongoing",
   upcoming: "Upcoming",
   completed: "Completed",
+  cancelled: "Cancelled",
 };
 
 export function groupTrips(trips: Trip[], key: string) {

@@ -28,6 +28,7 @@ const statusDot: Record<TripStatus, string> = {
   ongoing: "bg-warning",
   upcoming: "bg-info",
   completed: "bg-success",
+  cancelled: "bg-danger",
 };
 
 // Trip dates are plain YYYY-MM-DD calendar dates, so every date computed here

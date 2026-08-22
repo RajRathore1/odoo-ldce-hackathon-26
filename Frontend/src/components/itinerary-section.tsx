@@ -1,10 +1,12 @@
 "use client";
 
-import { Input, controlStyles } from "@/components/ui/field";
+import { Input, Select, controlStyles } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
+import type { SelectOption } from "@/lib/types";
 
 export type ItinerarySectionData = {
   id: string;
+  cityId: string;
   description: string;
   startDate: string;
   endDate: string;
@@ -14,6 +16,10 @@ export type ItinerarySectionData = {
 type ItinerarySectionProps = {
   index: number;
   section: ItinerarySectionData;
+  cities: SelectOption[];
+  minDate?: string;
+  maxDate?: string;
+  error?: string;
   onChange: (patch: Partial<ItinerarySectionData>) => void;
   onRemove: () => void;
   removable: boolean;
@@ -22,6 +28,10 @@ type ItinerarySectionProps = {
 export function ItinerarySection({
   index,
   section,
+  cities,
+  minDate,
+  maxDate,
+  error,
   onChange,
   onRemove,
   removable,
@@ -48,7 +58,23 @@ export function ItinerarySection({
         )}
       </div>
 
+      {error && (
+        <p className="mb-4 rounded-xl border border-danger/25 bg-danger/8 px-3.5 py-2.5 text-sm text-danger">
+          {error}
+        </p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
+        <Select
+          label="City"
+          placeholder="Which city is this section in?"
+          options={cities}
+          value={section.cityId}
+          onChange={(event) => onChange({ cityId: event.target.value })}
+          wrapperClassName="sm:col-span-2"
+          required
+        />
+
         <Input
           label="Section description"
           placeholder="Travel section, hotel, or any other activity"
@@ -62,6 +88,8 @@ export function ItinerarySection({
           label="Start date"
           type="date"
           value={section.startDate}
+          min={minDate}
+          max={maxDate}
           onChange={(event) => onChange({ startDate: event.target.value })}
           required
         />
@@ -69,7 +97,8 @@ export function ItinerarySection({
           label="End date"
           type="date"
           value={section.endDate}
-          min={section.startDate || undefined}
+          min={section.startDate || minDate}
+          max={maxDate}
           onChange={(event) => onChange({ endDate: event.target.value })}
           required
         />

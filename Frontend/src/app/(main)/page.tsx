@@ -1,6 +1,28 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { HomeSummary } from "@/components/home-summary";
 import { LandingExplorer } from "@/components/landing-explorer";
+<<<<<<< HEAD
+import { GlobeMark } from "@/components/navbar";
+import { LoadingBlock } from "@/components/page-state";
+import { buttonStyles } from "@/components/ui/button";
+import { toRegion, toTrip } from "@/lib/api/adapters";
+import type { DashboardDto } from "@/lib/api/dashboard-service";
+import type { CityDto } from "@/lib/api/geo-service";
+import type { Paginated, TripDto } from "@/lib/api/trips-service";
+import { useApi } from "@/lib/api/use-api";
+
+export default function HomePage() {
+  // Three separate calls on purpose: /dashboard/ carries the counts and the
+  // budget roll-up, but trims cities and costs off the rows the cards need.
+  const dashboard = useApi<DashboardDto>("/dashboard/");
+  const trips = useApi<Paginated<TripDto>>("/trips/?page_size=100");
+  const cities = useApi<CityDto[]>("/cities/popular/?limit=8");
+
+  const loading = dashboard.loading || trips.loading || cities.loading;
+=======
 import { buttonStyles } from "@/components/ui/button";
 import { formatMoney } from "@/lib/format";
 import { trips } from "@/lib/mock-data";
@@ -9,6 +31,7 @@ export default function HomePage() {
   const year = new Date().getUTCFullYear();
   const yearTrips = trips.filter((trip) => trip.startDate.startsWith(`${year}`));
   const yearBudget = yearTrips.reduce((sum, trip) => sum + trip.budget, 0);
+>>>>>>> efc356b54d6cbaeda028aaea0ae9048cdf74cee5
 
   return (
     <div className="space-y-8">
@@ -67,6 +90,19 @@ export default function HomePage() {
         </div>
       </section>
 
+<<<<<<< HEAD
+      {loading ? (
+        <LoadingBlock label="Loading your dashboard" />
+      ) : (
+        <>
+          {dashboard.data && <HomeSummary dashboard={dashboard.data} />}
+          <LandingExplorer
+            trips={(trips.data?.results ?? []).map(toTrip)}
+            regions={(cities.data ?? []).map(toRegion)}
+          />
+        </>
+      )}
+=======
       {yearTrips.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface px-5 py-3 text-sm">
           <span className="text-text-muted">This year:</span>
@@ -81,6 +117,7 @@ export default function HomePage() {
       )}
 
       <LandingExplorer />
+>>>>>>> efc356b54d6cbaeda028aaea0ae9048cdf74cee5
     </div>
   );
 }

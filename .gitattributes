@@ -1,0 +1,14 @@
+# Normalise line endings in the repo to LF regardless of who commits from where.
+# Without this, a Windows and a macOS/Linux checkout produce whole-file diffs on
+# every touched file, which makes review during the hackathon useless.
+* text=auto eol=lf
+
+# Binary — never normalise, never diff.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.sqlite3 binary

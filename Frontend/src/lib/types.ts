@@ -1,4 +1,4 @@
-export type TripStatus = "ongoing" | "upcoming" | "completed";
+export type TripStatus = "ongoing" | "upcoming" | "completed" | "cancelled";
 
 export type Trip = {
   id: string;
@@ -13,13 +13,16 @@ export type Trip = {
   image: string;
 };
 
+// A destination as the catalog returns it - one city, with what it costs and
+// how much there is to do there.
 export type Region = {
   id: string;
   name: string;
   country: string;
   blurb: string;
-  tripCount: number;
-  fromPrice: number;
+  activityCount: number;
+  avgDailyCost: number;
+  currency: string;
   image: string;
 };
 

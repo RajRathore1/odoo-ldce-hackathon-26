@@ -4,7 +4,10 @@ const nextConfig: NextConfig = {
   /* config options here */
   agentRules: false,
   images: {
-    remotePatterns: [{ hostname: "images.unsplash.com" }],
+    remotePatterns: [
+      { hostname: "images.unsplash.com" },
+      { hostname: "picsum.photos" },
+    ],
   },
 };
 

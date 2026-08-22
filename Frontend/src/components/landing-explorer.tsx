@@ -5,7 +5,6 @@ import { RegionCard } from "@/components/region-card";
 import { SearchFilterBar } from "@/components/search-filter-bar";
 import { SectionHeader } from "@/components/section-header";
 import { TripCard } from "@/components/trip-card";
-import { regions, trips } from "@/lib/mock-data";
 import {
   filterByStatus,
   groupOptions,
@@ -15,8 +14,15 @@ import {
   sortTrips,
   statusFilters,
 } from "@/lib/trips";
+import type { Region, Trip } from "@/lib/types";
 
-export function LandingExplorer() {
+export function LandingExplorer({
+  trips,
+  regions,
+}: {
+  trips: Trip[];
+  regions: Region[];
+}) {
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("none");
   const [status, setStatus] = useState("all");
@@ -31,7 +37,7 @@ export function LandingExplorer() {
         field.toLowerCase().includes(query),
       ),
     );
-  }, [search]);
+  }, [regions, search]);
 
   const groups = useMemo(() => {
     const matched = sortTrips(
@@ -39,7 +45,7 @@ export function LandingExplorer() {
       order,
     );
     return groupTrips(matched, group);
-  }, [search, status, order, group]);
+  }, [trips, search, status, order, group]);
 
   const matchCount = groups.reduce((total, bucket) => total + bucket.trips.length, 0);
   const searching = search.trim().length > 0;

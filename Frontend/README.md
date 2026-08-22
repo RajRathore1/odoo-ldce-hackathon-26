@@ -11,6 +11,22 @@ npm run build
 npm run lint
 ```
 
+## How data is fetched
+
+Every call is made from the browser, straight to the backend, so you can watch
+each one in the Network tab. There is no Next.js API route in between.
+
+- `lib/api/client.ts` builds the URL from `NEXT_PUBLIC_API_BASE_URL`, attaches
+  the bearer token, unwraps the `{success, message, data}` envelope, and on a
+  401 refreshes once and retries. Refresh tokens rotate and the spent one is
+  blacklisted immediately, so concurrent calls share a single refresh.
+- `lib/api/use-api.ts` is the GET hook pages use.
+- `components/auth-provider.tsx` owns the session and guards `(main)` routes.
+- Tokens live in `localStorage`, which means JavaScript can read them.
+
+`NEXT_PUBLIC_API_BASE_URL` is inlined at build time, so restart the dev server
+after changing it. The backend allows CORS from `http://localhost:3000`.
+
 ## Layout
 
 ```
@@ -19,6 +35,7 @@ src/
     (auth)/          login + registration, split-panel shell, no navbar
     (main)/          everything after login, wrapped by GlobalTrotterNavbar
     globals.css      design tokens (@theme) + base styles
+  lib/api/           client, hooks, and one type module per backend app
   components/
     ui/              Button, Input/Textarea/Select, Badge, Avatar
     navbar.tsx       GlobalTrotterNavbar

@@ -7,17 +7,16 @@ import { useSearchParams } from "next/navigation";
 import { SearchFilterBar } from "@/components/search-filter-bar";
 import { buttonStyles } from "@/components/ui/button";
 import { formatMoney } from "@/lib/format";
-import { regions } from "@/lib/mock-data";
 import type { Region, SelectOption } from "@/lib/types";
 
 const sortOptions: SelectOption[] = [
-  { label: "Most popular", value: "popular" },
-  { label: "Price: low to high", value: "price-asc" },
-  { label: "Price: high to low", value: "price-desc" },
+  { label: "Most to do", value: "popular" },
+  { label: "Cost: low to high", value: "price-asc" },
+  { label: "Cost: high to low", value: "price-desc" },
   { label: "Name", value: "name" },
 ];
 
-export function ExploreView() {
+export function ExploreView({ regions }: { regions: Region[] }) {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(() => {
     const regionId = searchParams.get("region");
@@ -32,7 +31,7 @@ export function ExploreView() {
       { label: "All countries", value: "all" },
       ...unique.map((name) => ({ label: name, value: name })),
     ];
-  }, []);
+  }, [regions]);
 
   const results = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -49,15 +48,15 @@ export function ExploreView() {
     const sorted = [...matched];
     switch (order) {
       case "price-asc":
-        return sorted.sort((a, b) => a.fromPrice - b.fromPrice);
+        return sorted.sort((a, b) => a.avgDailyCost - b.avgDailyCost);
       case "price-desc":
-        return sorted.sort((a, b) => b.fromPrice - a.fromPrice);
+        return sorted.sort((a, b) => b.avgDailyCost - a.avgDailyCost);
       case "name":
         return sorted.sort((a, b) => a.name.localeCompare(b.name));
       default:
-        return sorted.sort((a, b) => b.tripCount - a.tripCount);
+        return sorted.sort((a, b) => b.activityCount - a.activityCount);
     }
-  }, [search, country, order]);
+  }, [regions, search, country, order]);
 
   const searching = search.trim().length > 0;
 
@@ -109,10 +108,12 @@ function ExploreResultRow({ region }: { region: Region }) {
       </div>
 
       <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end sm:justify-center sm:gap-1 sm:text-right">
-        <p className="text-sm text-text-muted">{region.tripCount} trips planned</p>
+        <p className="text-sm text-text-muted">
+          {region.activityCount} activities
+        </p>
         <p className="text-sm font-semibold text-primary">
-          {formatMoney(region.fromPrice)}{" "}
-          <span className="font-normal text-text-muted">to start</span>
+          {formatMoney(region.avgDailyCost, region.currency)}{" "}
+          <span className="font-normal text-text-muted">a day</span>
         </p>
       </div>
 
