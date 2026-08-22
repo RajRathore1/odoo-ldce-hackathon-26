@@ -10,6 +10,7 @@ no separate Profile table, it would only cost a join.
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
+from django.utils import timezone
 
 from apps.accounts.constants import UserRole
 from apps.accounts.managers import AllUsersManager, UserManager
@@ -20,11 +21,6 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     """
     `date_joined` is deliberately absent — `created_at` from `BaseModel` is the
     same thing, and two fields meaning one thing drift apart.
-
-    `city` / `country` FKs into `geo` are added in task A2, once those models
-    exist. They cannot be declared before then: a string reference like
-    `"geo.City"` defers the *import*, but Django's system checks still resolve
-    the target at startup, so declaring one early stops the project booting.
     """
 
     email = models.EmailField(unique=True)
@@ -32,6 +28,24 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     last_name = models.CharField(max_length=60, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
     avatar = models.ImageField(upload_to="users/avatars/", null=True, blank=True)
+
+    # Where the user lives — the registration form's two dropdowns. String refs
+    # so `accounts` does not import `geo` at module level. SET_NULL: removing a
+    # city from the catalog must not delete the people living in it.
+    city = models.ForeignKey(
+        "geo.City",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="residents",
+    )
+    country = models.ForeignKey(
+        "geo.Country",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="residents",
+    )
 
     additional_info = models.TextField(blank=True)
     language = models.CharField(max_length=10, default="en")
@@ -67,3 +81,31 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     def is_admin(self) -> bool:
         """Read by `core.permissions.IsAdminRole`."""
         return self.is_staff or self.role == UserRole.ADMIN
+
+
+class PasswordResetToken(BaseModel):
+    """
+    Single-use, time-limited password reset token.
+
+    Issuing a new one invalidates the user's outstanding tokens — see
+    `services.issue_password_reset_token`. There is no mail server in this
+    project; `dev.py` uses the console email backend, so the token prints to the
+    terminal.
+    """
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="reset_tokens"
+    )
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return f"reset token for {self.user_id}"
+
+    @property
+    def is_valid(self) -> bool:
+        return self.used_at is None and self.expires_at > timezone.now()

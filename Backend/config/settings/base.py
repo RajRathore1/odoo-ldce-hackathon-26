@@ -14,7 +14,9 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 
 env = environ.Env(
     DEBUG=(bool, False),
-    SECRET_KEY=(str, "dev-only-insecure-key-change-me"),
+    # At least 32 bytes: SIMPLE_JWT signs with HS256, and PyJWT warns
+    # (InsecureKeyLengthWarning) on anything shorter.
+    SECRET_KEY=(str, "dev-only-insecure-key-change-me-before-deploying"),
     ALLOWED_HOSTS=(list, ["localhost", "127.0.0.1"]),
     CORS_ALLOW_ALL_ORIGINS=(bool, False),
     CORS_ALLOWED_ORIGINS=(list, []),
