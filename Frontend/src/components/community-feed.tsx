@@ -13,6 +13,10 @@ const sortOptions: SelectOption[] = [
   { label: "Most liked", value: "liked" },
 ];
 
+function countryOf(place: string) {
+  return place.split(",").pop()?.trim() ?? place;
+}
+
 const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
@@ -21,18 +25,29 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 
 export function CommunityFeed() {
   const [search, setSearch] = useState("");
+  const [country, setCountry] = useState("all");
   const [order, setOrder] = useState("newest");
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
 
+  const countryOptions = useMemo<SelectOption[]>(() => {
+    const unique = [...new Set(communityPosts.map((post) => countryOf(post.place)))].sort();
+    return [
+      { label: "All countries", value: "all" },
+      ...unique.map((name) => ({ label: name, value: name })),
+    ];
+  }, []);
+
   const posts = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const matched = communityPosts.filter(
-      (post) =>
+    const matched = communityPosts.filter((post) => {
+      const matchesQuery =
         !query ||
         [post.author, post.place, post.content].some((field) =>
           field.toLowerCase().includes(query),
-        ),
-    );
+        );
+      const matchesCountry = country === "all" || countryOf(post.place) === country;
+      return matchesQuery && matchesCountry;
+    });
 
     const effectiveLikes = (post: CommunityPost) =>
       post.likes + (likedIds.has(post.id) ? 1 : 0);
@@ -44,7 +59,7 @@ export function CommunityFeed() {
       sorted.sort((a, b) => b.postedAt.localeCompare(a.postedAt));
     }
     return sorted;
-  }, [search, order, likedIds]);
+  }, [search, country, order, likedIds]);
 
   function toggleLike(id: string) {
     setLikedIds((current) => {
@@ -63,25 +78,31 @@ export function CommunityFeed() {
         search={search}
         onSearchChange={setSearch}
         placeholder="Search a place, traveller or story"
+        filter={{ value: country, onChange: setCountry, options: countryOptions }}
         sortBy={{ value: order, onChange: setOrder, options: sortOptions }}
       />
 
       {posts.length > 0 ? (
         <div className="space-y-5">
-          {posts.map((post) => (
-            <PostCard
+          {posts.map((post, index) => (
+            <div
               key={post.id}
-              post={post}
-              liked={likedIds.has(post.id)}
-              onToggleLike={() => toggleLike(post.id)}
-            />
+              className="animate-fade-up"
+              style={{ animationDelay: `${Math.min(index, 5) * 60}ms` }}
+            >
+              <PostCard
+                post={post}
+                liked={likedIds.has(post.id)}
+                onToggleLike={() => toggleLike(post.id)}
+              />
+            </div>
           ))}
         </div>
       ) : (
         <p className="rounded-2xl border border-dashed border-border px-6 py-12 text-center text-sm text-text-muted">
           {searching
             ? `No stories match "${search.trim()}".`
-            : "No stories yet."}
+            : "No stories match those filters."}
         </p>
       )}
     </div>
@@ -100,46 +121,49 @@ function PostCard({
   const likeCount = post.likes + (liked ? 1 : 0);
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition-shadow hover:shadow-md">
+    <article className="group overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
       {post.image && (
-        <div className="relative h-48 w-full sm:h-56">
+        <div className="relative h-56 w-full sm:h-64">
           <Image
             src={post.image}
             alt={post.place}
             fill
             sizes="800px"
-            className="object-cover"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-black/10" />
+
+          <button
+            type="button"
+            onClick={onToggleLike}
+            aria-pressed={liked}
+            aria-label={liked ? "Unlike this story" : "Like this story"}
+            className={cn(
+              "absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium shadow-sm backdrop-blur-sm transition-all active:scale-95",
+              liked
+                ? "bg-danger text-white"
+                : "bg-white/90 text-text hover:bg-white",
+            )}
+          >
+            <HeartIcon filled={liked} />
+            {likeCount}
+          </button>
+
+          <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 p-4 text-white">
+            <Avatar name={post.author} size="sm" className="ring-2 ring-white/70" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">{post.author}</p>
+              <p className="text-xs text-white/80">
+                {post.place} ·{" "}
+                {dateFormatter.format(new Date(`${post.postedAt}T00:00:00Z`))}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
       <div className="p-5 sm:p-6">
-        <div className="flex items-center gap-3">
-          <Avatar name={post.author} size="sm" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">{post.author}</p>
-            <p className="text-xs text-text-muted">
-              {post.place} ·{" "}
-              {dateFormatter.format(new Date(`${post.postedAt}T00:00:00Z`))}
-            </p>
-          </div>
-        </div>
-
-        <p className="mt-4 text-sm leading-relaxed text-text">
-          {post.content}
-        </p>
-
-        <button
-          type="button"
-          onClick={onToggleLike}
-          className={cn(
-            "mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-            liked ? "bg-danger/10 text-danger" : "text-text-muted hover:bg-bg",
-          )}
-        >
-          <HeartIcon filled={liked} />
-          {likeCount}
-        </button>
+        <p className="text-sm leading-relaxed text-text">{post.content}</p>
       </div>
     </article>
   );
