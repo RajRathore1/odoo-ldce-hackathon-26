@@ -44,3 +44,13 @@ export type ItineraryDay = {
   day: number;
   activities: ItineraryActivity[];
 };
+
+export type CommunityPost = {
+  id: string;
+  author: string;
+  place: string;
+  content: string;
+  likes: number;
+  postedAt: string;
+  image?: string;
+};

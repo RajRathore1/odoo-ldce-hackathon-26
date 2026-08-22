@@ -1,4 +1,10 @@
-import type { ItineraryDay, Region, Suggestion, Trip } from "@/lib/types";
+import type {
+  CommunityPost,
+  ItineraryDay,
+  Region,
+  Suggestion,
+  Trip,
+} from "@/lib/types";
 
 export const regions: Region[] = [
   {
@@ -314,3 +320,61 @@ export const itineraries: Record<string, ItineraryDay[]> = {
     },
   ],
 };
+
+export const communityPosts: CommunityPost[] = [
+  {
+    id: "post-1",
+    author: "Meera Nair",
+    place: "Alleppey, India",
+    content:
+      "Woke up to mist on the backwaters and a chai on the houseboat deck. Slower than any beach holiday I've done, and better for it.",
+    likes: 42,
+    postedAt: "2026-08-20",
+    image:
+      "https://images.unsplash.com/photo-1785932413547-cdd1159e1f1e?fm=jpg&q=70&w=800&auto=format&fit=crop",
+  },
+  {
+    id: "post-2",
+    author: "Kabir Shah",
+    place: "Ubud, Bali",
+    content:
+      "The Tegalalang rice terraces are worth the early alarm. Get there before 8am and you'll have the paths almost to yourself.",
+    likes: 67,
+    postedAt: "2026-08-15",
+    image:
+      "https://images.unsplash.com/photo-1557093793-d149a38a1be8?fm=jpg&q=70&w=800&auto=format&fit=crop",
+  },
+  {
+    id: "post-3",
+    author: "Priya Menon",
+    place: "Jaipur, India",
+    content:
+      "Amber Fort at opening time, before the tour buses arrive, is a completely different experience. Took the elephant path up on foot instead and had the ramparts to myself.",
+    likes: 31,
+    postedAt: "2026-08-10",
+    image:
+      "https://images.unsplash.com/photo-1599661046289-e31897846e41?fm=jpg&q=70&w=800&auto=format&fit=crop",
+  },
+  {
+    id: "post-4",
+    author: "Daichi Sato",
+    place: "Tokyo, Japan",
+    content:
+      "Skipped the Tokyo Tower queue and caught the same view from a nearby rooftop bar for the price of a drink. Worth remembering for next time.",
+    likes: 54,
+    postedAt: "2026-08-05",
+    image:
+      "https://images.unsplash.com/photo-1766133239036-e37f42a54869?fm=jpg&q=70&w=800&auto=format&fit=crop",
+  },
+  {
+    id: "post-5",
+    author: "Tenzin Dolma",
+    place: "Leh, Ladakh",
+    content:
+      "Give yourself a full day to acclimatise before heading up to Khardung La. The altitude sneaks up on you faster than the itinerary suggests.",
+    likes: 38,
+    postedAt: "2026-07-28",
+    image:
+      "https://images.unsplash.com/photo-1760835251791-1fda687de791?fm=jpg&q=70&w=800&auto=format&fit=crop",
+  },
+];
