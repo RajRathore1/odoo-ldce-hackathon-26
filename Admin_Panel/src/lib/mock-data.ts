@@ -95,16 +95,41 @@ export const popularActivities: { activity: string; bookings: number }[] = [
 
 export const platformStats = {
   totalUsers: 4820,
+  activeUsers: 4310,
+  suspendedUsers: 62,
   tripsPlanned: 2150,
   citiesCovered: 46,
   avgBudget: 86400,
+  totalRevenue: 18600000,
+  newSignupsThisMonth: 310,
+  communityPosts: 1284,
+  conversionRate: 0.32,
 };
 
-export const monthlySignups: { month: string; users: number }[] = [
-  { month: "Mar", users: 120 },
-  { month: "Apr", users: 150 },
-  { month: "May", users: 210 },
-  { month: "Jun", users: 180 },
-  { month: "Jul", users: 260 },
-  { month: "Aug", users: 310 },
-];
+export const signupsByPeriod: Record<
+  "6m" | "12m",
+  { month: string; users: number }[]
+> = {
+  "6m": [
+    { month: "Mar", users: 120 },
+    { month: "Apr", users: 150 },
+    { month: "May", users: 210 },
+    { month: "Jun", users: 180 },
+    { month: "Jul", users: 260 },
+    { month: "Aug", users: 310 },
+  ],
+  "12m": [
+    { month: "Sep", users: 60 },
+    { month: "Oct", users: 75 },
+    { month: "Nov", users: 90 },
+    { month: "Dec", users: 110 },
+    { month: "Jan", users: 95 },
+    { month: "Feb", users: 130 },
+    { month: "Mar", users: 120 },
+    { month: "Apr", users: 150 },
+    { month: "May", users: 210 },
+    { month: "Jun", users: 180 },
+    { month: "Jul", users: 260 },
+    { month: "Aug", users: 310 },
+  ],
+};
