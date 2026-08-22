@@ -40,7 +40,7 @@ export function GlobalTrotterNavbar() {
                 "rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
                 isActive(link.href)
                   ? "bg-primary text-white"
-                  : "text-text-muted hover:bg-bg hover:text-text",
+                  : "text-text-muted hover:bg-subtle hover:text-text",
               )}
             >
               {link.label}
@@ -65,7 +65,7 @@ export function GlobalTrotterNavbar() {
             aria-label="Toggle navigation"
             aria-expanded={open}
             onClick={() => setOpen((value) => !value)}
-            className="-mr-1 rounded-lg p-2 text-text-muted hover:bg-bg md:hidden"
+            className="-mr-1 rounded-lg p-2 text-text-muted hover:bg-subtle md:hidden"
           >
             <MenuIcon open={open} />
           </button>

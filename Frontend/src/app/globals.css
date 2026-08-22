@@ -9,6 +9,8 @@
   --color-danger: #e0344a;
   --color-bg: #ffffff;
   --color-surface: #ffffff;
+  /* Page and surface are both white, so hovers and tints need their own step. */
+  --color-subtle: #f7f7f7;
   --color-border: #ebebeb;
   --color-text: #222222;
   --color-text-muted: #717171;

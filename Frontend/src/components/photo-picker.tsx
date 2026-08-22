@@ -14,7 +14,7 @@ export function PhotoPicker({ name, preview, onChange }: PhotoPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-dashed border-border bg-bg p-4 transition-colors hover:border-primary/30">
+    <div className="flex items-center gap-4 rounded-2xl border border-dashed border-border bg-subtle p-4 transition-colors hover:border-primary/30">
       <Avatar name={name} src={preview} size="lg" />
 
       <div className="min-w-0">

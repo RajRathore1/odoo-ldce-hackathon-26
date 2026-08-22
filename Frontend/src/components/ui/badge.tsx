@@ -13,7 +13,7 @@ const dots: Record<Tone, string> = {
 };
 
 const tints: Record<Tone, string> = {
-  neutral: "bg-bg",
+  neutral: "bg-subtle",
   success: "bg-success/12",
   warning: "bg-warning/15",
   info: "bg-info/12",
