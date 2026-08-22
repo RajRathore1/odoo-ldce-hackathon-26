@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api/session";
-import type { Trip, TripStatus } from "@/lib/types";
+import type { ItineraryDay, Trip, TripStatus } from "@/lib/types";
 
 export type TripDto = {
   id: number;
@@ -72,4 +72,33 @@ export function toTrip(dto: TripDto): Trip {
 export async function listTrips() {
   const page = await apiFetch<Paginated<TripDto>>("/trips/?page_size=100");
   return page.results.map(toTrip);
+}
+
+export function getTripDto(id: string) {
+  return apiFetch<TripDto>(`/trips/${id}/`);
+}
+
+export type ItineraryDto = {
+  trip: { id: number; name: string; currency: string };
+  days: {
+    date: string;
+    day_number: number;
+    stop: { id: number; title: string } | null;
+    activities: { id: number; title: string; cost: string }[];
+    day_total_cost: string;
+  }[];
+  totals: { grand_total: string };
+};
+
+export async function getItinerary(id: string) {
+  const dto = await apiFetch<ItineraryDto>(`/trips/${id}/itinerary/`);
+
+  return dto.days.map<ItineraryDay>((day) => ({
+    day: day.day_number,
+    activities: day.activities.map((activity) => ({
+      id: String(activity.id),
+      activity: activity.title,
+      expense: Number(activity.cost) || 0,
+    })),
+  }));
 }

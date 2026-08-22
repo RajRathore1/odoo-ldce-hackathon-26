@@ -36,3 +36,14 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
 
   return payload as T;
 }
+
+export async function getJson<T>(path: string): Promise<T> {
+  const response = await fetch(path);
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as
+      | { message?: string }
+      | null;
+    throw new SubmitError(payload?.message ?? "Request failed.");
+  }
+  return (await response.json()) as T;
+}

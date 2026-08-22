@@ -1,6 +1,9 @@
 import { TripDetailsForm } from "@/components/trip-details-form";
+import { listCities } from "@/lib/api/geo-service";
 
-export default function NewTripPage() {
+export default async function NewTripPage() {
+  const cities = await listCities();
+
   return (
     <div className="space-y-10">
       <div>
@@ -13,7 +16,7 @@ export default function NewTripPage() {
         </p>
       </div>
 
-      <TripDetailsForm />
+      <TripDetailsForm cities={cities} />
     </div>
   );
 }

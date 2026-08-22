@@ -1,22 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { FormAlert } from "@/components/form-alert";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { SectionHeader } from "@/components/section-header";
-import { SubmitError, postJson } from "@/lib/api/browser";
-import { regions, suggestions } from "@/lib/mock-data";
-import type { SelectOption } from "@/lib/types";
-
-const placeOptions: SelectOption[] = regions.map((region) => ({
-  label: `${region.name}, ${region.country}`,
-  value: region.id,
-}));
+import { SubmitError, getJson, postJson } from "@/lib/api/browser";
+import type { Region, SelectOption } from "@/lib/types";
 
 type Section = { id: string; label: string };
+type Suggestion = { id: string; label: string };
 
 let sectionSeed = 0;
 function nextSectionId() {
@@ -24,17 +19,48 @@ function nextSectionId() {
   return `section-${sectionSeed}`;
 }
 
-export function TripDetailsForm() {
+export function TripDetailsForm({ cities }: { cities: Region[] }) {
   const router = useRouter();
+  const placeOptions: SelectOption[] = cities.map((city) => ({
+    label: `${city.name}, ${city.country}`,
+    value: city.id,
+  }));
   const [title, setTitle] = useState("");
   const [placeId, setPlaceId] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [sections, setSections] = useState<Section[]>([]);
+  const [loaded, setLoaded] = useState<{ cityId: string; items: Suggestion[] }>(
+    { cityId: "", items: [] },
+  );
   const [alert, setAlert] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+
+  // What people actually do in the selected city, straight from the catalog.
+  // The city is stored alongside the results so a slow response for a city the
+  // user has already moved on from is simply ignored.
+  useEffect(() => {
+    if (!placeId) return;
+
+    let active = true;
+
+    getJson<{ activities: Suggestion[] }>(`/api/activities?city=${placeId}`)
+      .then((data) => {
+        if (active) setLoaded({ cityId: placeId, items: data.activities });
+      })
+      .catch(() => {
+        if (active) setLoaded({ cityId: placeId, items: [] });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [placeId]);
+
+  const suggestionsReady = Boolean(placeId) && loaded.cityId === placeId;
+  const suggestions = suggestionsReady ? loaded.items : [];
 
   function toggleSuggestion(id: string, label: string) {
     setAdded((prev) => {
@@ -87,10 +113,9 @@ export function TripDetailsForm() {
     setErrors({});
     setSaving(true);
 
-    // The place picker and the sections below still run on mock data: the
-    // backend has no /cities/ or /trips/{id}/stops/ yet. Only the trip itself
-    // is persisted for now.
-    const place = regions.find((region) => region.id === placeId);
+    // The chosen city becomes the description here; it turns into a real stop
+    // on the next screen, where each section carries its own city and dates.
+    const place = cities.find((city) => city.id === placeId);
 
     try {
       const { trip } = await postJson<{ trip: { id: number } }>("/api/trips", {
@@ -159,6 +184,23 @@ export function TripDetailsForm() {
           title="Suggestions for this trip"
           description="Tap to add places to visit or activities to perform, then fine-tune each one in the next step."
         />
+
+        {!placeId && (
+          <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-text-muted">
+            Pick a place above and we&apos;ll show what people do there.
+          </p>
+        )}
+
+        {placeId && !suggestionsReady && (
+          <p className="text-sm text-text-muted">Loading suggestions...</p>
+        )}
+
+        {suggestionsReady && suggestions.length === 0 && (
+          <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-text-muted">
+            Nothing listed for this city yet.
+          </p>
+        )}
+
         <div className="flex flex-wrap gap-2">
           {suggestions.map((suggestion) => {
             const isAdded = added.has(suggestion.id);
