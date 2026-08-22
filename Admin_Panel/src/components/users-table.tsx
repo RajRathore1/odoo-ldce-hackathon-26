@@ -13,6 +13,14 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
 });
 
 type StatusFilter = "all" | "active" | "suspended";
+type SortKey = "name" | "trips" | "joined";
+type SortDirection = "asc" | "desc";
+
+const columns: { key: SortKey; label: string }[] = [
+  { key: "name", label: "Name" },
+  { key: "trips", label: "Trips" },
+  { key: "joined", label: "Joined" },
+];
 
 function initials(name: string) {
   return name
@@ -27,10 +35,21 @@ function initials(name: string) {
 export function UsersTable({ users }: { users: AdminUser[] }) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("joined");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  const filtered = useMemo(() => {
+  function toggleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
+    }
+  }
+
+  const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return users.filter((user) => {
+    const filtered = users.filter((user) => {
       const matchesQuery =
         !query ||
         [user.name, user.email, user.city].some((field) =>
@@ -39,7 +58,19 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
       const matchesStatus = status === "all" || user.status === status;
       return matchesQuery && matchesStatus;
     });
-  }, [users, search, status]);
+
+    const sorted = [...filtered].sort((a, b) => {
+      const compared =
+        sortKey === "name"
+          ? a.name.localeCompare(b.name)
+          : sortKey === "trips"
+            ? a.trips - b.trips
+            : a.joined.localeCompare(b.joined);
+      return sortDirection === "asc" ? compared : -compared;
+    });
+
+    return sorted;
+  }, [users, search, status, sortKey, sortDirection]);
 
   return (
     <div className="space-y-4">
@@ -72,16 +103,28 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
         <table className="w-full text-left text-sm">
           <thead className="bg-subtle text-xs font-medium text-text-muted">
             <tr>
-              <th className="px-4 py-3">Name</th>
+              {columns.map((column) => (
+                <th key={column.key} className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort(column.key)}
+                    className="inline-flex items-center gap-1 hover:text-text"
+                  >
+                    {column.label}
+                    <SortArrow
+                      active={sortKey === column.key}
+                      direction={sortDirection}
+                    />
+                  </button>
+                </th>
+              ))}
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">City</th>
-              <th className="px-4 py-3">Trips</th>
-              <th className="px-4 py-3">Joined</th>
               <th className="px-4 py-3">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {filtered.map((user) => (
+            {rows.map((user) => (
               <tr key={user.id} className="hover:bg-subtle/60">
                 <td className="px-4 py-3 font-medium whitespace-nowrap">
                   <div className="flex items-center gap-2.5">
@@ -91,14 +134,14 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
                     {user.name}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-text-muted whitespace-nowrap">
-                  {user.email}
-                </td>
-                <td className="px-4 py-3 whitespace-nowrap">{user.city}</td>
                 <td className="px-4 py-3">{user.trips}</td>
                 <td className="px-4 py-3 whitespace-nowrap text-text-muted">
                   {dateFormatter.format(new Date(`${user.joined}T00:00:00Z`))}
                 </td>
+                <td className="px-4 py-3 text-text-muted whitespace-nowrap">
+                  {user.email}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">{user.city}</td>
                 <td className="px-4 py-3">
                   <span
                     className={cn(
@@ -120,7 +163,7 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
               </tr>
             ))}
 
-            {filtered.length === 0 && (
+            {rows.length === 0 && (
               <tr>
                 <td
                   colSpan={6}
@@ -134,5 +177,32 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
         </table>
       </div>
     </div>
+  );
+}
+
+function SortArrow({
+  active,
+  direction,
+}: {
+  active: boolean;
+  direction: SortDirection;
+}) {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn(
+        "size-3 transition-transform",
+        active ? "text-primary" : "text-text-muted/40",
+        active && direction === "desc" && "rotate-180",
+      )}
+      aria-hidden
+    >
+      <path d="M3 5l3-3 3 3M6 2v8" />
+    </svg>
   );
 }

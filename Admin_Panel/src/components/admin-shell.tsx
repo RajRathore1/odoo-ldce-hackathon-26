@@ -8,6 +8,23 @@ import {
   UsersIcon,
 } from "@/components/icons";
 
+function GlobeMark() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      className="size-8 shrink-0 rounded-xl bg-primary p-1.5 text-accent"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3c2.5 2.6 3.8 5.6 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z" />
+    </svg>
+  );
+}
+
 const navItems = [
   { href: "#overview", label: "Overview", icon: DashboardIcon },
   { href: "#cities", label: "Cities", icon: MapPinIcon },
@@ -21,9 +38,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-subtle">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface px-4 py-6 lg:flex">
         <div className="flex items-center gap-2 px-2">
-          <span className="flex size-8 items-center justify-center rounded-xl bg-primary text-sm font-bold text-white">
-            G
-          </span>
+          <GlobeMark />
           <span className="font-heading text-base font-semibold">
             GlobeTrotter
           </span>

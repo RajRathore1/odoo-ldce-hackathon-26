@@ -1,6 +1,9 @@
+"use client";
+
 import type { ComponentType } from "react";
 import { TrendUpIcon } from "@/components/icons";
 import { cn } from "@/lib/cn";
+import { useCountUp } from "@/lib/use-count-up";
 
 type Tone = "primary" | "accent" | "success" | "info" | "warning";
 
@@ -15,18 +18,28 @@ const toneClasses: Record<Tone, string> = {
 export function StatCard({
   label,
   value,
+  format,
   trend,
   icon: Icon,
   tone = "primary",
+  style,
 }: {
   label: string;
-  value: string;
+  value: number;
+  format?: (value: number) => string;
   trend?: string;
   icon: ComponentType<{ className?: string }>;
   tone?: Tone;
+  style?: React.CSSProperties;
 }) {
+  const animated = useCountUp(value);
+  const display = format ? format(animated) : animated.toLocaleString("en-IN");
+
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6">
+    <div
+      style={style}
+      className="animate-fade-up rounded-2xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6"
+    >
       <div className="flex items-center justify-between">
         <span
           className={cn(
@@ -44,8 +57,8 @@ export function StatCard({
         )}
       </div>
       <p className="mt-4 text-sm font-medium text-text-muted">{label}</p>
-      <p className="mt-1 font-heading text-2xl font-semibold sm:text-3xl">
-        {value}
+      <p className="mt-1 font-heading text-2xl font-semibold tabular-nums sm:text-3xl">
+        {display}
       </p>
     </div>
   );

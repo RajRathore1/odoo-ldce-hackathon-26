@@ -24,7 +24,7 @@ export function RankingList({
             )}
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-subtle">
               <div
-                className="h-full rounded-full bg-accent"
+                className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
                 style={{ width: `${(item.value / max) * 100}%` }}
               />
             </div>
