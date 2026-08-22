@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { SearchFilterBar } from "@/components/search-filter-bar";
 import { TripCard } from "@/components/trip-card";
+import { cn } from "@/lib/cn";
 import { trips } from "@/lib/mock-data";
 import {
   filterByStatus,
@@ -13,10 +14,10 @@ import {
 } from "@/lib/trips";
 import type { TripStatus } from "@/lib/types";
 
-const statusGroups: { key: TripStatus; label: string }[] = [
-  { key: "ongoing", label: "Ongoing" },
-  { key: "upcoming", label: "Up-coming" },
-  { key: "completed", label: "Completed" },
+const statusGroups: { key: TripStatus; label: string; dot: string }[] = [
+  { key: "ongoing", label: "Ongoing", dot: "bg-warning" },
+  { key: "upcoming", label: "Up-coming", dot: "bg-info" },
+  { key: "completed", label: "Completed", dot: "bg-success" },
 ];
 
 export default function TripsPage() {
@@ -60,9 +61,14 @@ export default function TripsPage() {
       />
 
       <div className="space-y-10">
-        {groups.map((group) => (
-          <section key={group.key}>
-            <h2 className="mb-4 inline-flex items-center gap-2 font-heading text-xl font-semibold sm:text-2xl">
+        {groups.map((group, groupIndex) => (
+          <section
+            key={group.key}
+            className="animate-fade-up"
+            style={{ animationDelay: `${groupIndex * 80}ms` }}
+          >
+            <h2 className="mb-4 inline-flex items-center gap-2.5 font-heading text-xl font-semibold sm:text-2xl">
+              <span className={cn("size-2 rounded-full", group.dot)} />
               {group.label}
               <span className="rounded-full bg-bg px-2 py-0.5 text-sm font-normal text-text-muted">
                 {group.trips.length}
@@ -71,12 +77,14 @@ export default function TripsPage() {
 
             {group.trips.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {group.trips.map((trip) => (
-                  <TripCard
+                {group.trips.map((trip, tripIndex) => (
+                  <div
                     key={trip.id}
-                    trip={trip}
-                    href={`/trips/${trip.id}`}
-                  />
+                    className="animate-fade-up"
+                    style={{ animationDelay: `${tripIndex * 60}ms` }}
+                  >
+                    <TripCard trip={trip} href={`/trips/${trip.id}`} />
+                  </div>
                 ))}
               </div>
             ) : (
