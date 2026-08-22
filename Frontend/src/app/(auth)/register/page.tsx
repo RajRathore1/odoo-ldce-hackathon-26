@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthCard } from "@/components/auth-card";
+import { FormAlert } from "@/components/form-alert";
 import { PhotoPicker } from "@/components/photo-picker";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/field";
+import { SubmitError, postJson } from "@/lib/api/browser";
 
 const countries = [
   "India",
@@ -20,9 +22,9 @@ const countries = [
 const emptyForm = {
   firstName: "",
   lastName: "",
-  username: "",
-  password: "",
   email: "",
+  password: "",
+  confirmPassword: "",
   phone: "",
   city: "",
   country: "",
@@ -30,23 +32,31 @@ const emptyForm = {
 };
 
 type Form = typeof emptyForm;
-type Errors = Partial<Record<keyof Form, string>>;
+type Errors = Partial<Record<keyof Form, string>> & { form?: string };
+
+// Field names the backend rejects with, mapped onto our form state.
+const backendFields: Record<string, keyof Form> = {
+  email: "email",
+  password: "password",
+  confirm_password: "confirmPassword",
+  first_name: "firstName",
+  last_name: "lastName",
+  phone_number: "phone",
+  additional_info: "about",
+};
 
 function validate(form: Form): Errors {
   const errors: Errors = {};
 
   if (!form.firstName.trim()) errors.firstName = "First name is required";
-  if (!form.lastName.trim()) errors.lastName = "Last name is required";
-  if (form.username.trim().length < 3)
-    errors.username = "Pick a username with at least 3 characters";
-  if (form.password.length < 6)
-    errors.password = "Password must be at least 6 characters";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
     errors.email = "Enter a valid email address";
-  if (!/^\+?[\d\s-]{10,15}$/.test(form.phone))
+  if (form.password.length < 8)
+    errors.password = "Password must be at least 8 characters";
+  if (form.confirmPassword !== form.password)
+    errors.confirmPassword = "Passwords do not match";
+  if (form.phone && !/^\+?[\d\s-]{10,15}$/.test(form.phone))
     errors.phone = "Enter a valid phone number";
-  if (!form.city.trim()) errors.city = "City is required";
-  if (!form.country) errors.country = "Select a country";
 
   return errors;
 }
@@ -56,6 +66,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState<Form>(emptyForm);
   const [photo, setPhoto] = useState<string | null>(null);
   const [errors, setErrors] = useState<Errors>({});
+  const [alert, setAlert] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Release the object URL of the previous preview whenever it is replaced.
@@ -72,15 +83,40 @@ export default function RegisterPage() {
     setPhoto(file ? URL.createObjectURL(file) : null);
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const nextErrors = validate(form);
     setErrors(nextErrors);
+    setAlert(null);
     if (Object.keys(nextErrors).length > 0) return;
 
     setSubmitting(true);
-    router.push("/");
+
+    try {
+      await postJson("/api/auth/register", {
+        email: form.email,
+        password: form.password,
+        confirm_password: form.confirmPassword,
+        first_name: form.firstName,
+        last_name: form.lastName,
+        phone_number: form.phone,
+        additional_info: form.about,
+      });
+      router.replace("/");
+      router.refresh();
+    } catch (error) {
+      if (error instanceof SubmitError) {
+        setAlert(error.message);
+        const mapped: Errors = {};
+        for (const [key, message] of Object.entries(error.fields)) {
+          const target = backendFields[key];
+          if (target) mapped[target] = message;
+        }
+        setErrors(mapped);
+      }
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -94,6 +130,8 @@ export default function RegisterPage() {
       }}
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        <FormAlert message={alert} />
+
         <PhotoPicker
           name={`${form.firstName} ${form.lastName}`.trim() || "New traveller"}
           preview={photo}
@@ -117,24 +155,6 @@ export default function RegisterPage() {
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            label="Username"
-            autoComplete="username"
-            value={form.username}
-            onChange={(event) => update("username", event.target.value)}
-            error={errors.username}
-          />
-          <Input
-            label="Password"
-            type="password"
-            autoComplete="new-password"
-            value={form.password}
-            onChange={(event) => update("password", event.target.value)}
-            error={errors.password}
-          />
-        </div>
-
         <Input
           label="Email Address"
           type="email"
@@ -144,6 +164,25 @@ export default function RegisterPage() {
           onChange={(event) => update("email", event.target.value)}
           error={errors.email}
         />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Password"
+            type="password"
+            autoComplete="new-password"
+            value={form.password}
+            onChange={(event) => update("password", event.target.value)}
+            error={errors.password}
+          />
+          <Input
+            label="Confirm Password"
+            type="password"
+            autoComplete="new-password"
+            value={form.confirmPassword}
+            onChange={(event) => update("confirmPassword", event.target.value)}
+            error={errors.confirmPassword}
+          />
+        </div>
 
         <Input
           label="Phone Number"
@@ -159,30 +198,30 @@ export default function RegisterPage() {
           <Input
             label="City"
             autoComplete="address-level2"
+            hint="Saved once the locations service is live"
             value={form.city}
             onChange={(event) => update("city", event.target.value)}
-            error={errors.city}
           />
           <Select
             label="Country"
             options={countries}
             placeholder="Select a country"
+            hint="Saved once the locations service is live"
             value={form.country}
             onChange={(event) => update("country", event.target.value)}
-            error={errors.country}
           />
         </div>
 
         <Textarea
           label="Additional Information"
-          placeholder="Favourite kind of trip, dietary needs, anything else we should know…"
+          placeholder="Favourite kind of trip, dietary needs, anything else we should know"
           hint="Optional"
           value={form.about}
           onChange={(event) => update("about", event.target.value)}
         />
 
         <Button type="submit" className="w-full" disabled={submitting}>
-          {submitting ? "Creating account…" : "Create account"}
+          {submitting ? "Creating account..." : "Create account"}
         </Button>
       </form>
     </AuthCard>

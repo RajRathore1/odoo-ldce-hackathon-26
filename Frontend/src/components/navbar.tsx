@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { Avatar } from "@/components/ui/avatar";
-import { buttonStyles } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/button";
 
 const links = [
   { href: "/", label: "Home" },
@@ -14,12 +14,23 @@ const links = [
   { href: "/calendar", label: "Calendar" },
 ];
 
-export function GlobalTrotterNavbar() {
+type NavUser = { name: string; avatar: string | null };
+
+export function GlobalTrotterNavbar({ user }: { user: NavUser }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur">
@@ -56,9 +67,19 @@ export function GlobalTrotterNavbar() {
             Plan a trip
           </Link>
 
-          <Link href="/profile" aria-label="Your profile">
-            <Avatar name="Abhishek Singh" size="sm" />
+          <Link href="/profile" aria-label="Your profile" title={user.name}>
+            <Avatar name={user.name} src={user.avatar} size="sm" />
           </Link>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="hidden md:inline-flex"
+          >
+            {signingOut ? "Signing out..." : "Sign out"}
+          </Button>
 
           <button
             type="button"
@@ -96,6 +117,15 @@ export function GlobalTrotterNavbar() {
           >
             Plan a trip
           </Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="mb-2 w-full"
+          >
+            {signingOut ? "Signing out..." : "Sign out"}
+          </Button>
         </nav>
       )}
     </header>
