@@ -413,7 +413,36 @@ class TripWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"end_date": "End date must be on or after the start date."}
             )
+        self._reject_orphaned_stops(start_date, end_date)
         return attrs
+
+    def _reject_orphaned_stops(self, start_date, end_date) -> None:
+        """
+        Refuse a date change that would leave a stop outside its own trip.
+
+        Without this, shrinking a trip silently strands its stops: the itinerary
+        only emits dates inside the trip range, so those days — and every
+        activity on them — would vanish from the screen while the rows sat in the
+        database. Cheap query, and only on an update that moves a date.
+        """
+        if self.instance is None:
+            return
+        if (start_date, end_date) == (self.instance.start_date, self.instance.end_date):
+            return
+
+        orphaned = self.instance.stops.exclude(
+            start_date__gte=start_date, end_date__lte=end_date
+        )
+        titles = [stop.display_title for stop in orphaned]
+        if titles:
+            raise serializers.ValidationError(
+                {
+                    "start_date": (
+                        f"These stops would fall outside the new dates: "
+                        f"{', '.join(titles)}. Move or remove them first."
+                    )
+                }
+            )
 
 
 class CoverPhotoSerializer(serializers.ModelSerializer):
@@ -424,3 +453,77 @@ class CoverPhotoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
         fields = ("cover_photo",)
+
+
+# ------------------------------------------------------------------ itinerary
+
+
+class ItineraryTripSerializer(serializers.ModelSerializer):
+    """The header block of the itinerary response — enough to caption the screen."""
+
+    duration_days = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Trip
+        fields = ("id", "name", "start_date", "end_date", "duration_days", "currency")
+
+
+class ItineraryStopSerializer(serializers.Serializer):
+    """
+    The stop as the itinerary shows it: which section a day belongs to, no more.
+
+    Deliberately not `TripStopSerializer` — that one carries dates, budget and
+    an `activities_count`, all of which the itinerary either repeats or would
+    have to query per stop.
+    """
+
+    id = serializers.IntegerField(read_only=True)
+    title = serializers.CharField(source="display_title", read_only=True)
+    city = CityMiniSerializer(read_only=True)
+    order = serializers.IntegerField(read_only=True)
+
+
+class ItineraryDaySerializer(serializers.Serializer):
+    """One day. `stop` is null on a day no stop covers; `activities` may be empty."""
+
+    date = serializers.DateField(read_only=True)
+    day_number = serializers.IntegerField(read_only=True)
+    stop = ItineraryStopSerializer(read_only=True, allow_null=True)
+    activities = TripActivitySerializer(many=True, read_only=True)
+    day_total_cost = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
+
+class ItineraryStopGroupSerializer(serializers.Serializer):
+    """One group of `?view=stop`. `stop` is null for days no stop covers."""
+
+    stop = ItineraryStopSerializer(read_only=True, allow_null=True)
+    days = ItineraryDaySerializer(many=True, read_only=True)
+    stop_total_cost = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
+
+class ItineraryTotalsSerializer(serializers.Serializer):
+    """
+    Trip-wide cost, from the one budget formula.
+
+    `activities_cost` is the sum of the snapshotted `TripActivity.cost` values;
+    `expenses_cost` is the one-off `Expense` rows. Both are zero until task A6.
+    """
+
+    activities_cost = serializers.DecimalField(max_digits=12, decimal_places=2)
+    expenses_cost = serializers.DecimalField(max_digits=12, decimal_places=2)
+    grand_total = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class ItinerarySerializer(serializers.Serializer):
+    """
+    `GET /trips/{id}/itinerary/`.
+
+    `days` is present for `?view=day` (the default) and `stops` for
+    `?view=stop`; the other is absent rather than null, so the frontend branches
+    on the parameter it sent.
+    """
+
+    trip = ItineraryTripSerializer(read_only=True)
+    days = ItineraryDaySerializer(many=True, read_only=True, required=False)
+    stops = ItineraryStopGroupSerializer(many=True, read_only=True, required=False)
+    totals = ItineraryTotalsSerializer(read_only=True)

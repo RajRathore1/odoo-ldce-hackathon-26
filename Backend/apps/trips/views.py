@@ -7,7 +7,7 @@ No business rules and no multi-step ORM work.
 
 from django.shortcuts import get_object_or_404
 from django.utils.functional import cached_property
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -20,6 +20,7 @@ from apps.trips.models import Trip, TripStop
 from apps.trips.serializers import (
     ActivityReorderSerializer,
     CoverPhotoSerializer,
+    ItinerarySerializer,
     StopReorderSerializer,
     TripActivityCreateSerializer,
     TripActivitySerializer,
@@ -322,6 +323,49 @@ class TripActivityDetailView(OwnerQuerysetMixin, generics.RetrieveUpdateDestroyA
     def destroy(self, request, *args, **kwargs):
         services.delete_trip_activity(self.get_object())
         return no_content()
+
+
+@extend_schema(
+    tags=["itinerary"],
+    summary="Day-wise itinerary",
+    parameters=[
+        OpenApiParameter(
+            "view",
+            enum=["day", "stop"],
+            description="`day` (default) returns `days`; `stop` groups them under `stops`.",
+        )
+    ],
+    responses={200: ItinerarySerializer},
+)
+class TripItineraryView(TripScopedMixin, generics.GenericAPIView):
+    """
+    `GET /trips/{trip_id}/itinerary/` — Screen 10.
+
+    **Not paginated.** A trip is a bounded object and the screen renders all of
+    it at once; paginating would split a fortnight across two requests.
+    """
+
+    serializer_class = ItinerarySerializer
+    pagination_class = None
+
+    def get(self, request, *args, **kwargs):
+        days = selectors.itinerary_for_trip(self.trip)
+        summary = selectors.cost_summaries_for([self.trip.pk])[self.trip.pk]
+
+        payload = {
+            "trip": self.trip,
+            "totals": {
+                "activities_cost": summary["activities_cost"],
+                "expenses_cost": summary["expenses_cost"],
+                "grand_total": summary["grand_total"],
+            },
+        }
+        if request.query_params.get("view") == "stop":
+            payload["stops"] = selectors.group_itinerary_by_stop(days)
+        else:
+            payload["days"] = days
+
+        return success(data=ItinerarySerializer(payload).data)
 
 
 @extend_schema(

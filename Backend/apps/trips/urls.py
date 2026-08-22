@@ -18,6 +18,7 @@ from apps.trips.views import (
     TripActivityDetailView,
     TripActivityListCreateView,
     TripActivityReorderView,
+    TripItineraryView,
     TripStopDetailView,
     TripStopListCreateView,
     TripStopReorderView,
@@ -56,6 +57,12 @@ urlpatterns = [
         "trips/<int:trip_id>/activities/reorder/",
         TripActivityReorderView.as_view(),
         name="trip-activity-reorder",
+    ),
+    # Itinerary — Screen 10. Not paginated; a trip is a bounded object.
+    path(
+        "trips/<int:trip_id>/itinerary/",
+        TripItineraryView.as_view(),
+        name="trip-itinerary",
     ),
     path(
         "trip-activities/<int:pk>/",
