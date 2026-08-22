@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { LandingExplorer } from "@/components/landing-explorer";
 import { buttonStyles } from "@/components/ui/button";
@@ -6,13 +7,20 @@ export default function HomePage() {
   return (
     <div className="space-y-12">
       <section className="relative overflow-hidden rounded-3xl bg-primary px-6 py-14 text-white sm:px-12 sm:py-20">
-        <div
-          aria-hidden
-          className="absolute -top-24 -right-16 size-96 rounded-full bg-accent/30 blur-3xl"
+        <Image
+          src="https://images.unsplash.com/photo-1482914988630-16b155655e15?fm=jpg&q=80&w=2400&auto=format&fit=crop"
+          alt="Mountain range at golden hour"
+          fill
+          priority
+          className="object-cover"
         />
         <div
           aria-hidden
-          className="absolute -bottom-32 -left-24 size-80 rounded-full bg-info/25 blur-3xl"
+          className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/75 to-primary/30"
+        />
+        <div
+          aria-hidden
+          className="absolute -top-24 -right-16 size-96 rounded-full bg-accent/20 blur-3xl"
         />
 
         <div className="relative max-w-2xl">
