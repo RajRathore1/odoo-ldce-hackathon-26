@@ -119,6 +119,11 @@ DATABASES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Seed data lives in one project-level directory rather than being scattered
+# across each app's own `fixtures/`. Django only searches app directories by
+# default, so without this `loaddata dev_seed` cannot find the file.
+FIXTURE_DIRS = [BASE_DIR / "fixtures"]
+
 # ⚠️ Must be set before the very first `migrate`. Changing it afterwards means
 # deleting db.sqlite3 and every migration.
 AUTH_USER_MODEL = "accounts.User"
