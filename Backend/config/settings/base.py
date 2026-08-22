@@ -220,7 +220,7 @@ SPECTACULAR_SETTINGS = {
     "SWAGGER_UI_SETTINGS": {
         "persistAuthorization": True,
         "displayRequestDuration": True,
-        "docExpansion": "none",
+        # "docExpansion": "none",
     },
     "TAGS": [
         {"name": "auth", "description": "Registration, login, tokens, password reset"},

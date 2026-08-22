@@ -1,0 +1,94 @@
+[
+  {"city_name": "Bir", "category_slug": "adventure", "name": "Tandem paragliding at Bir Billing", "description": "Twenty-minute flight from Billing with a certified pilot, landing at the Bir meadow.", "activity_type": "ADVENTURE", "cost": 2500, "duration_minutes": 90, "rating": 4.7},
+  {"city_name": "Bir", "category_slug": "culture", "name": "Chokling and Sherabling monastery circuit", "description": "Two Tibetan monasteries in the colony, with the afternoon prayers at Chokling.", "activity_type": "CULTURE", "cost": 600, "duration_minutes": 180, "rating": 4.4},
+  {"city_name": "Bir", "category_slug": "nature", "name": "Billing sunrise trek", "description": "Pre-dawn walk up to the take-off site for the Dhauladhar ridge at first light.", "activity_type": "NATURE", "cost": 900, "duration_minutes": 300, "rating": 4.5},
+
+  {"city_name": "Manali", "category_slug": "adventure", "name": "Solang Valley zorbing and ropeway", "description": "Ropeway up, zorb down, with the Beas valley behind you.", "activity_type": "ADVENTURE", "cost": 1800, "duration_minutes": 240, "rating": 4.2},
+  {"city_name": "Manali", "category_slug": "day-trips", "name": "Rohtang Pass day trip", "description": "Shared cab over the pass, permit included. Closed through winter.", "activity_type": "SIGHTSEEING", "cost": 3200, "duration_minutes": 600, "rating": 4.3},
+  {"city_name": "Manali", "category_slug": "culture", "name": "Hadimba Temple and Old Manali walk", "description": "Cedar-forest temple, then the old village and the cafés on the far bank.", "activity_type": "CULTURE", "cost": 400, "duration_minutes": 150, "rating": 4.4},
+
+  {"city_name": "Kasol", "category_slug": "adventure", "name": "Kheerganga overnight trek", "description": "Twelve kilometres up from Barshaini to the hot springs, camping at the top.", "activity_type": "ADVENTURE", "cost": 2200, "duration_minutes": 720, "rating": 4.6},
+  {"city_name": "Kasol", "category_slug": "relax", "name": "Parvati riverside afternoon", "description": "Nothing scheduled. A café by the water and a book.", "activity_type": "RELAX", "cost": 500, "duration_minutes": 180, "rating": 4.5},
+
+  {"city_name": "Jaipur", "category_slug": "sightseeing", "name": "Amber Fort guided tour", "description": "The mirror hall, Sheesh Mahal and the stepwell below, with a licensed guide.", "activity_type": "SIGHTSEEING", "cost": 1100, "duration_minutes": 210, "rating": 4.6},
+  {"city_name": "Jaipur", "category_slug": "sightseeing", "name": "City Palace and Jantar Mantar", "description": "The palace museum and the eighteenth-century observatory next door.", "activity_type": "SIGHTSEEING", "cost": 900, "duration_minutes": 180, "rating": 4.5},
+  {"city_name": "Jaipur", "category_slug": "food", "name": "Old city street-food walk", "description": "Kachori, pyaaz ki kachori and lassi through Chandpole and Johari Bazaar.", "activity_type": "FOOD", "cost": 800, "duration_minutes": 150, "rating": 4.7},
+
+  {"city_name": "Udaipur", "category_slug": "sightseeing", "name": "Lake Pichola sunset boat", "description": "An hour on the water past Jag Mandir, timed for the light on the City Palace.", "activity_type": "SIGHTSEEING", "cost": 1400, "duration_minutes": 90, "rating": 4.8},
+  {"city_name": "Udaipur", "category_slug": "culture", "name": "Bagore Ki Haveli folk performance", "description": "Rajasthani dance and puppetry in a restored haveli on the ghats.", "activity_type": "CULTURE", "cost": 500, "duration_minutes": 90, "rating": 4.4},
+
+  {"city_name": "Agra", "category_slug": "sightseeing", "name": "Taj Mahal at sunrise", "description": "First entry at the east gate, before the crowds and the haze.", "activity_type": "SIGHTSEEING", "cost": 1500, "duration_minutes": 180, "rating": 4.9},
+  {"city_name": "Agra", "category_slug": "sightseeing", "name": "Agra Fort", "description": "The red-sandstone fort and the view of the Taj from Musamman Burj.", "activity_type": "SIGHTSEEING", "cost": 700, "duration_minutes": 120, "rating": 4.5},
+
+  {"city_name": "Varanasi", "category_slug": "culture", "name": "Ganga aarti at Dashashwamedh", "description": "Evening ceremony from a boat on the river rather than the crush on the steps.", "activity_type": "CULTURE", "cost": 800, "duration_minutes": 120, "rating": 4.7},
+  {"city_name": "Varanasi", "category_slug": "sightseeing", "name": "Sunrise ghat rowing", "description": "Out at half past five, downstream past the burning ghats and back.", "activity_type": "SIGHTSEEING", "cost": 700, "duration_minutes": 120, "rating": 4.6},
+
+  {"city_name": "Leh", "category_slug": "day-trips", "name": "Pangong Tso overnight", "description": "Over Chang La to the lake, staying in a camp at Spangmik.", "activity_type": "SIGHTSEEING", "cost": 6500, "duration_minutes": 1440, "rating": 4.8},
+  {"city_name": "Leh", "category_slug": "culture", "name": "Thiksey and Hemis monasteries", "description": "Morning prayers at Thiksey, then Hemis down the Indus valley.", "activity_type": "CULTURE", "cost": 2200, "duration_minutes": 420, "rating": 4.6},
+
+  {"city_name": "Panaji", "category_slug": "sightseeing", "name": "Old Goa churches walk", "description": "Basilica of Bom Jesus and Se Cathedral, with the Fontainhas quarter after.", "activity_type": "SIGHTSEEING", "cost": 900, "duration_minutes": 240, "rating": 4.4},
+  {"city_name": "Panaji", "category_slug": "food", "name": "Beach shack seafood dinner", "description": "Whole fish, prawn balchão and a sunset you did not have to book.", "activity_type": "FOOD", "cost": 1800, "duration_minutes": 120, "rating": 4.5},
+  {"city_name": "Panaji", "category_slug": "adventure", "name": "Grande Island snorkelling trip", "description": "Boat out from Vasco with two snorkel stops and lunch aboard.", "activity_type": "ADVENTURE", "cost": 2400, "duration_minutes": 360, "rating": 4.3},
+
+  {"city_name": "Kochi", "category_slug": "culture", "name": "Kathakali performance with make-up session", "description": "The hour of make-up first, then the performance, at Fort Kochi.", "activity_type": "CULTURE", "cost": 600, "duration_minutes": 120, "rating": 4.5},
+  {"city_name": "Kochi", "category_slug": "food", "name": "Fort Kochi and Jew Town food walk", "description": "Spice godowns, Mattancherry and the fish grilled where the nets land it.", "activity_type": "FOOD", "cost": 1200, "duration_minutes": 180, "rating": 4.6},
+
+  {"city_name": "Alappuzha", "category_slug": "relax", "name": "Backwater houseboat, one night", "description": "Full-board kettuvallam through Kuttanad, moored overnight in the paddy.", "activity_type": "RELAX", "cost": 9000, "duration_minutes": 1440, "rating": 4.7},
+  {"city_name": "Alappuzha", "category_slug": "nature", "name": "Canoe through the narrow canals", "description": "The channels a houseboat cannot reach, with a punt and a local guide.", "activity_type": "NATURE", "cost": 1400, "duration_minutes": 240, "rating": 4.6},
+
+  {"city_name": "Munnar", "category_slug": "nature", "name": "Tea estate walk and factory visit", "description": "Through the bushes to a working factory, ending with a tasting.", "activity_type": "NATURE", "cost": 800, "duration_minutes": 240, "rating": 4.4},
+
+  {"city_name": "Mumbai", "category_slug": "sightseeing", "name": "Elephanta Caves ferry and caves", "description": "An hour across the harbour, then the rock-cut Shiva temples.", "activity_type": "SIGHTSEEING", "cost": 1300, "duration_minutes": 360, "rating": 4.3},
+  {"city_name": "Mumbai", "category_slug": "food", "name": "Mohammed Ali Road evening eating", "description": "Kebabs, malpua and phirni through the Ramzan-season lanes.", "activity_type": "FOOD", "cost": 1000, "duration_minutes": 150, "rating": 4.7},
+
+  {"city_name": "New Delhi", "category_slug": "sightseeing", "name": "Humayun's Tomb and Nizamuddin", "description": "The tomb that rehearsed the Taj, then qawwali at the dargah on Thursday.", "activity_type": "SIGHTSEEING", "cost": 900, "duration_minutes": 240, "rating": 4.6},
+  {"city_name": "New Delhi", "category_slug": "food", "name": "Old Delhi cycle-rickshaw food ride", "description": "Chandni Chowk end to end — parathas, jalebi, and Karim's if there is room.", "activity_type": "FOOD", "cost": 1200, "duration_minutes": 210, "rating": 4.8},
+
+  {"city_name": "Rishikesh", "category_slug": "adventure", "name": "Sixteen-kilometre Ganges rafting", "description": "Shivpuri to Rishikesh, four grade-three rapids and a cliff jump.", "activity_type": "ADVENTURE", "cost": 1500, "duration_minutes": 240, "rating": 4.6},
+
+  {"city_name": "Amritsar", "category_slug": "culture", "name": "Golden Temple and langar", "description": "The parikrama at dawn, then eating in the world's largest free kitchen.", "activity_type": "CULTURE", "cost": 0, "duration_minutes": 180, "rating": 4.9},
+
+  {"city_name": "Bangkok", "category_slug": "food", "name": "Chinatown night-market food crawl", "description": "Yaowarat from seven, standing up, until you cannot.", "activity_type": "FOOD", "cost": 900, "duration_minutes": 180, "rating": 4.7},
+  {"city_name": "Bangkok", "category_slug": "sightseeing", "name": "Grand Palace and Wat Pho", "description": "The palace complex, then the reclining Buddha and a Thai massage next door.", "activity_type": "SIGHTSEEING", "cost": 700, "duration_minutes": 240, "rating": 4.5},
+
+  {"city_name": "Singapore", "category_slug": "sightseeing", "name": "Gardens by the Bay and Supertree show", "description": "Both conservatories in the afternoon, the light show after dark.", "activity_type": "SIGHTSEEING", "cost": 53, "duration_minutes": 240, "rating": 4.6},
+  {"city_name": "Singapore", "category_slug": "food", "name": "Hawker centre tasting: Maxwell and Chinatown", "description": "Chicken rice, laksa, carrot cake and kaya toast, all under one roof.", "activity_type": "FOOD", "cost": 35, "duration_minutes": 120, "rating": 4.8},
+
+  {"city_name": "Tokyo", "category_slug": "food", "name": "Tsukiji outer market breakfast walk", "description": "Tamagoyaki, uni and knife shops, from seven in the morning.", "activity_type": "FOOD", "cost": 6000, "duration_minutes": 150, "rating": 4.7},
+  {"city_name": "Tokyo", "category_slug": "culture", "name": "Senso-ji and Yanaka old town", "description": "The temple early, then the low-rise streets Tokyo's bombing missed.", "activity_type": "CULTURE", "cost": 2000, "duration_minutes": 300, "rating": 4.6},
+  {"city_name": "Tokyo", "category_slug": "nightlife", "name": "Shinjuku Omoide Yokocho evening", "description": "Six-seat yakitori bars in the alley behind the station.", "activity_type": "NIGHTLIFE", "cost": 5000, "duration_minutes": 180, "rating": 4.5},
+
+  {"city_name": "Kyoto", "category_slug": "sightseeing", "name": "Fushimi Inari before six", "description": "The full torii climb to the top before the first tour bus arrives.", "activity_type": "SIGHTSEEING", "cost": 0, "duration_minutes": 180, "rating": 4.9},
+  {"city_name": "Kyoto", "category_slug": "culture", "name": "Arashiyama bamboo grove and Tenryu-ji", "description": "The grove at opening, the temple garden after, and the monkey park above.", "activity_type": "CULTURE", "cost": 1500, "duration_minutes": 300, "rating": 4.5},
+
+  {"city_name": "Paris", "category_slug": "culture", "name": "Louvre, timed entry", "description": "Pre-booked slot through the Carrousel entrance. Three hours is the minimum.", "activity_type": "CULTURE", "cost": 22, "duration_minutes": 240, "rating": 4.7},
+  {"city_name": "Paris", "category_slug": "sightseeing", "name": "Eiffel Tower summit", "description": "Lift to the second floor, then the summit lift. Book the first slot.", "activity_type": "SIGHTSEEING", "cost": 29, "duration_minutes": 180, "rating": 4.6},
+  {"city_name": "Paris", "category_slug": "food", "name": "Marais bakery and cheese walk", "description": "Four stops through the third arrondissement with a Parisian who eats there.", "activity_type": "FOOD", "cost": 65, "duration_minutes": 180, "rating": 4.8},
+
+  {"city_name": "Rome", "category_slug": "sightseeing", "name": "Colosseum, Forum and Palatine", "description": "One ticket, three sites, in that order, starting at opening.", "activity_type": "SIGHTSEEING", "cost": 24, "duration_minutes": 300, "rating": 4.7},
+  {"city_name": "Rome", "category_slug": "food", "name": "Trastevere evening food tour", "description": "Supplì, carbonara and a gelato that will ruin the others for you.", "activity_type": "FOOD", "cost": 75, "duration_minutes": 210, "rating": 4.8},
+
+  {"city_name": "Venice", "category_slug": "transport", "name": "Vaporetto Line 1, end to end", "description": "The whole Grand Canal by public boat for the price of a bus ticket.", "activity_type": "TRANSPORT", "cost": 9, "duration_minutes": 75, "rating": 4.6},
+  {"city_name": "Venice", "category_slug": "culture", "name": "Doge's Palace and the Bridge of Sighs", "description": "The council chambers, the armoury and the prisons across the bridge.", "activity_type": "CULTURE", "cost": 30, "duration_minutes": 180, "rating": 4.5},
+
+  {"city_name": "Barcelona", "category_slug": "sightseeing", "name": "Sagrada Família with tower access", "description": "Timed entry plus one tower lift. Afternoon light through the west windows.", "activity_type": "SIGHTSEEING", "cost": 36, "duration_minutes": 150, "rating": 4.8},
+  {"city_name": "Barcelona", "category_slug": "food", "name": "Gràcia tapas evening", "description": "Four bars in the neighbourhood Barcelonans actually drink in.", "activity_type": "FOOD", "cost": 55, "duration_minutes": 180, "rating": 4.6},
+
+  {"city_name": "Interlaken", "category_slug": "adventure", "name": "Paragliding over Lake Brienz", "description": "Take-off from Beatenberg, twenty minutes over the lake, landing in town.", "activity_type": "ADVENTURE", "cost": 180, "duration_minutes": 120, "rating": 4.8},
+  {"city_name": "Interlaken", "category_slug": "transport", "name": "Jungfraujoch railway", "description": "Cog railway to Europe's highest station, through the Eiger.", "activity_type": "TRANSPORT", "cost": 210, "duration_minutes": 420, "rating": 4.7},
+
+  {"city_name": "London", "category_slug": "culture", "name": "British Museum highlights", "description": "Rosetta Stone, Parthenon marbles, Sutton Hoo. Free, so go twice.", "activity_type": "CULTURE", "cost": 0, "duration_minutes": 210, "rating": 4.7},
+  {"city_name": "London", "category_slug": "sightseeing", "name": "Tower of London and Crown Jewels", "description": "First entry, jewels before the queue builds, then the Yeoman tour.", "activity_type": "SIGHTSEEING", "cost": 35, "duration_minutes": 210, "rating": 4.6},
+
+  {"city_name": "Dubai", "category_slug": "sightseeing", "name": "Burj Khalifa observation deck", "description": "Levels 124 and 125 at sunset. Book a slot or pay double at the door.", "activity_type": "SIGHTSEEING", "cost": 169, "duration_minutes": 120, "rating": 4.5},
+  {"city_name": "Dubai", "category_slug": "adventure", "name": "Desert dune drive and dinner", "description": "Afternoon pickup, dune bashing, camel ride and a camp dinner.", "activity_type": "ADVENTURE", "cost": 250, "duration_minutes": 360, "rating": 4.4},
+
+  {"city_name": "Istanbul", "category_slug": "sightseeing", "name": "Hagia Sophia and Blue Mosque", "description": "Both in a morning, with the Basilica Cistern between them.", "activity_type": "SIGHTSEEING", "cost": 900, "duration_minutes": 240, "rating": 4.7},
+  {"city_name": "Istanbul", "category_slug": "shopping", "name": "Grand Bazaar and Spice Market", "description": "Four thousand shops. Bring a list or you will buy a rug.", "activity_type": "SHOPPING", "cost": 300, "duration_minutes": 180, "rating": 4.4},
+
+  {"city_name": "New York", "category_slug": "culture", "name": "The Met, pay-what-you-wish", "description": "Two million objects. Pick three wings and accept defeat.", "activity_type": "CULTURE", "cost": 30, "duration_minutes": 240, "rating": 4.8},
+  {"city_name": "New York", "category_slug": "nature", "name": "High Line and Chelsea Market", "description": "The elevated park end to end, lunch in the market underneath.", "activity_type": "NATURE", "cost": 25, "duration_minutes": 180, "rating": 4.5},
+
+  {"city_name": "Queenstown", "category_slug": "adventure", "name": "Kawarau Bridge bungy", "description": "Forty-three metres, the original commercial bungy site, since 1988.", "activity_type": "ADVENTURE", "cost": 265, "duration_minutes": 150, "rating": 4.7},
+  {"city_name": "Queenstown", "category_slug": "day-trips", "name": "Milford Sound coach and cruise", "description": "Long day: through the Homer Tunnel, two hours on the fiord, back by dark.", "activity_type": "SIGHTSEEING", "cost": 235, "duration_minutes": 780, "rating": 4.8}
+]

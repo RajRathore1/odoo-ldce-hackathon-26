@@ -7,6 +7,8 @@ list endpoint happily returns every user's rows. Scope at the queryset, and use
 the permission class as the second line of defence for detail routes.
 """
 
+from django.shortcuts import get_object_or_404
+
 from core.permissions import IsAdminRole
 
 
@@ -70,3 +72,28 @@ class SerializerActionMixin:
         return self.serializer_classes.get(
             getattr(self, "action", None), super().get_serializer_class()
         )
+
+
+class UnfilteredObjectMixin:
+    """
+    Look a detail object up in the **unfiltered** queryset.
+
+    DRF's `get_object()` runs the filter backends before the lookup. That is
+    right for a list and wrong for a detail route: `/admin/users/7/` addresses
+    one row by id, so a list-level default has no business hiding it.
+
+    Concretely, `SoftDeleteFilterMixin` hides soft-deleted rows unless
+    `?include_deleted=true` — apply that to a detail route and a deleted account
+    becomes unreachable, **including by the endpoint whose job is to restore
+    it**. Pair this mixin with that filter on any admin viewset over
+    `all_objects`.
+    """
+
+    def get_object(self):
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        obj = get_object_or_404(
+            self.get_queryset(),
+            **{self.lookup_field: self.kwargs[lookup_url_kwarg]},
+        )
+        self.check_object_permissions(self.request, obj)
+        return obj

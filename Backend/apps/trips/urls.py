@@ -15,9 +15,12 @@ from django.urls import path
 from rest_framework.routers import SimpleRouter
 
 from apps.trips.views import (
+    PublicTripCopyView,
+    PublicTripView,
     TripActivityDetailView,
     TripActivityListCreateView,
     TripActivityReorderView,
+    TripItineraryView,
     TripStopDetailView,
     TripStopListCreateView,
     TripStopReorderView,
@@ -57,9 +60,27 @@ urlpatterns = [
         TripActivityReorderView.as_view(),
         name="trip-activity-reorder",
     ),
+    # Itinerary — Screen 10. Not paginated; a trip is a bounded object.
+    path(
+        "trips/<int:trip_id>/itinerary/",
+        TripItineraryView.as_view(),
+        name="trip-itinerary",
+    ),
     path(
         "trip-activities/<int:pk>/",
         TripActivityDetailView.as_view(),
         name="trip-activity-detail",
+    ),
+    # Public share pages. `<uuid:...>` rather than `<str:...>`, so a malformed
+    # token is a 404 from the router instead of a 500 from the ORM.
+    path(
+        "public/trips/<uuid:share_token>/",
+        PublicTripView.as_view(),
+        name="public-trip",
+    ),
+    path(
+        "public/trips/<uuid:share_token>/copy/",
+        PublicTripCopyView.as_view(),
+        name="public-trip-copy",
     ),
 ]

@@ -12,7 +12,7 @@ from rest_framework.test import APIClient
 from apps.accounts.tests.factories import DEFAULT_PASSWORD, UserFactory
 from apps.activities.constants import ActivityType
 from apps.activities.tests.factories import ActivityFactory
-from apps.geo.tests.factories import CityFactory
+from apps.geo.tests.factories import CityFactory, CountryFactory
 from apps.trips.constants import TripStatus
 from apps.trips.models import Trip, TripActivity, TripStop
 from apps.trips.tests.factories import (
@@ -131,11 +131,12 @@ class TestTripList:
         """
         Trap #9. The list must be flat, whatever the page size.
 
-        Four: the authenticating user, the page count, the page itself, and one
-        prefetch for every stop on it.
+        Seven: the authenticating user, the page count, the page itself, one
+        prefetch for every stop on it, and the three that `bulk_trip_cost_summary`
+        needs for the whole page's costs.
         """
         TripFactory.create_batch(3, user=user)
-        with django_assert_num_queries(4) as captured:
+        with django_assert_num_queries(7) as captured:
             client.get(LIST_URL)
 
         TripFactory.create_batch(12, user=user)
@@ -1008,7 +1009,7 @@ class TestTripPayloadsWithStops:
         )
         TripActivityFactory(trip_stop=stop, day_date=trip.start_date)
 
-        with django_assert_num_queries(4) as captured:
+        with django_assert_num_queries(7) as captured:
             client.get(detail_url(trip.pk))
 
         for index in range(3):
@@ -1073,3 +1074,369 @@ class TestTripPayloadsWithStops:
         body = client.get(LIST_URL, {"city": city.pk}).json()
 
         assert body["data"]["pagination"]["count"] == 1
+
+    def test_shrinking_a_trip_that_would_orphan_a_stop_is_rejected(self, client, trip):
+        """
+        Otherwise the stop's days silently vanish from the itinerary, which only
+        emits dates inside the trip range, while the rows stay in the database.
+        """
+        TripStopFactory(
+            trip=trip,
+            start_date=trip.end_date - timedelta(days=1),
+            end_date=trip.end_date,
+        )
+
+        response = client.patch(
+            detail_url(trip.pk),
+            {"end_date": str(trip.end_date - timedelta(days=5))},
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "start_date" in response.json()["errors"]["fields"]
+
+    def test_widening_a_trip_is_always_allowed(self, client, trip):
+        TripStopFactory(
+            trip=trip, start_date=trip.start_date, end_date=trip.start_date + timedelta(days=1)
+        )
+
+        response = client.patch(
+            detail_url(trip.pk),
+            {"end_date": str(trip.end_date + timedelta(days=5))},
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+
+# ------------------------------------------------------------------ itinerary
+
+
+class TestItinerary:
+    def url(self, trip_id) -> str:
+        return reverse("trip-itinerary", args=[trip_id])
+
+    def test_every_date_in_range_appears_including_empty_days(self, client, trip):
+        """Trap #6 — the frontend renders placeholders, it does not compute gaps."""
+        body = client.get(self.url(trip.pk)).json()
+        days = body["data"]["days"]
+
+        assert len(days) == trip.duration_days == 10
+        assert days[0]["date"] == str(trip.start_date)
+        assert days[-1]["date"] == str(trip.end_date)
+        assert [day["day_number"] for day in days] == list(range(1, 11))
+        assert all(day["activities"] == [] for day in days)
+        assert all(day["day_total_cost"] == "0.00" for day in days)
+
+    def test_it_is_not_paginated(self, client, trip):
+        """A trip is a bounded object; splitting a fortnight over two requests is not."""
+        body = client.get(self.url(trip.pk)).json()
+
+        assert "pagination" not in body["data"]
+        assert isinstance(body["data"]["days"], list)
+
+    def test_a_day_no_stop_covers_has_a_null_stop(self, client, trip):
+        TripStopFactory(
+            trip=trip, start_date=trip.start_date, end_date=trip.start_date + timedelta(days=1)
+        )
+
+        days = client.get(self.url(trip.pk)).json()["data"]["days"]
+
+        assert days[0]["stop"] is not None
+        assert days[1]["stop"] is not None
+        assert days[2]["stop"] is None
+
+    def test_stop_boundaries_are_inclusive_at_both_ends(self, client, trip):
+        stop = TripStopFactory(
+            trip=trip,
+            start_date=trip.start_date + timedelta(days=2),
+            end_date=trip.start_date + timedelta(days=4),
+        )
+
+        days = client.get(self.url(trip.pk)).json()["data"]["days"]
+        covered = [day["date"] for day in days if day["stop"] is not None]
+
+        assert covered == [
+            str(stop.start_date),
+            str(stop.start_date + timedelta(days=1)),
+            str(stop.end_date),
+        ]
+
+    def test_a_day_covered_by_two_stops_belongs_to_the_earlier_one(self, client, trip):
+        """A travel day can overlap; the itinerary has one column, so order wins."""
+        first = TripStopFactory(
+            trip=trip,
+            order=1,
+            city=CityFactory(name="Bir"),
+            start_date=trip.start_date,
+            end_date=trip.start_date + timedelta(days=2),
+        )
+        TripStopFactory(
+            trip=trip,
+            order=2,
+            city=CityFactory(name="Manali"),
+            start_date=trip.start_date + timedelta(days=2),
+            end_date=trip.start_date + timedelta(days=4),
+        )
+
+        days = client.get(self.url(trip.pk)).json()["data"]["days"]
+
+        assert days[2]["stop"]["id"] == first.pk
+        assert days[2]["stop"]["city"]["name"] == "Bir"
+
+    def test_activities_land_on_their_day_with_a_day_total(self, client, trip):
+        stop = TripStopFactory(
+            trip=trip, start_date=trip.start_date, end_date=trip.start_date + timedelta(days=3)
+        )
+        TripActivityFactory(
+            trip_stop=stop,
+            custom_title="Paragliding",
+            day_date=trip.start_date + timedelta(days=1),
+            cost=Decimal("2500.00"),
+            order=1,
+        )
+        TripActivityFactory(
+            trip_stop=stop,
+            custom_title="Dinner",
+            day_date=trip.start_date + timedelta(days=1),
+            cost=Decimal("700.00"),
+            order=2,
+        )
+
+        days = client.get(self.url(trip.pk)).json()["data"]["days"]
+
+        assert days[0]["activities"] == []
+        assert [item["title"] for item in days[1]["activities"]] == ["Paragliding", "Dinner"]
+        assert days[1]["day_total_cost"] == "3200.00"
+
+    def test_a_deleted_stops_activities_are_gone_from_the_itinerary(self, client, trip):
+        stop = TripStopFactory(
+            trip=trip, start_date=trip.start_date, end_date=trip.start_date + timedelta(days=2)
+        )
+        TripActivityFactory(trip_stop=stop, day_date=trip.start_date)
+        stop.delete()
+
+        days = client.get(self.url(trip.pk)).json()["data"]["days"]
+
+        assert all(day["stop"] is None for day in days)
+        assert all(day["activities"] == [] for day in days)
+
+    def test_the_trip_header_and_totals_are_present(self, client, trip):
+        body = client.get(self.url(trip.pk)).json()
+
+        assert body["data"]["trip"]["id"] == trip.pk
+        assert body["data"]["trip"]["duration_days"] == 10
+        assert body["data"]["trip"]["currency"] == "INR"
+        # Zero until A6 — shape is final.
+        assert body["data"]["totals"] == {
+            "activities_cost": "0.00",
+            "expenses_cost": "0.00",
+            "grand_total": "0.00",
+        }
+
+    def test_view_stop_groups_days_under_their_stop(self, client, trip):
+        first = TripStopFactory(
+            trip=trip,
+            order=1,
+            start_date=trip.start_date,
+            end_date=trip.start_date + timedelta(days=1),
+        )
+        second = TripStopFactory(
+            trip=trip,
+            order=2,
+            start_date=trip.start_date + timedelta(days=2),
+            end_date=trip.start_date + timedelta(days=3),
+        )
+
+        body = client.get(self.url(trip.pk), {"view": "stop"}).json()
+        groups = body["data"]["stops"]
+
+        assert "days" not in body["data"]
+        assert [group["stop"]["id"] for group in groups[:2]] == [first.pk, second.pk]
+        assert len(groups[0]["days"]) == 2
+        # The six days no stop covers form a trailing null group — no day is lost.
+        assert groups[-1]["stop"] is None
+        assert len(groups[-1]["days"]) == 6
+        assert sum(len(group["days"]) for group in groups) == trip.duration_days
+
+    def test_view_stop_totals_each_group(self, client, trip):
+        stop = TripStopFactory(
+            trip=trip,
+            order=1,
+            start_date=trip.start_date,
+            end_date=trip.start_date + timedelta(days=2),
+        )
+        TripActivityFactory(trip_stop=stop, day_date=trip.start_date, cost=Decimal("1000.00"))
+        TripActivityFactory(
+            trip_stop=stop,
+            day_date=trip.start_date + timedelta(days=1),
+            cost=Decimal("250.50"),
+        )
+
+        groups = client.get(self.url(trip.pk), {"view": "stop"}).json()["data"]["stops"]
+
+        assert groups[0]["stop_total_cost"] == "1250.50"
+
+    def test_query_count_does_not_grow_with_the_itinerary(
+        self, client, trip, django_assert_num_queries
+    ):
+        stop = TripStopFactory(
+            trip=trip, start_date=trip.start_date, end_date=trip.start_date + timedelta(days=3)
+        )
+        TripActivityFactory(trip_stop=stop, day_date=trip.start_date)
+
+        # Two for the itinerary (stops, activities), three for the cost totals,
+        # plus the trip lookup and the authenticating user.
+        with django_assert_num_queries(7) as captured:
+            client.get(self.url(trip.pk))
+
+        TripActivityFactory.create_batch(
+            6, trip_stop=stop, day_date=trip.start_date + timedelta(days=1)
+        )
+
+        with django_assert_num_queries(len(captured.captured_queries)):
+            client.get(self.url(trip.pk))
+
+    def test_somebody_elses_itinerary_is_a_404(self, client, other_user):
+        assert client.get(self.url(TripFactory(user=other_user).pk)).status_code == 404
+
+    def test_it_requires_authentication(self, trip):
+        assert APIClient().get(self.url(trip.pk)).status_code == 401
+
+
+# ------------------------------------------------------------------- group by
+
+
+class TestTripGroupBy:
+    """Screen 3's "Group by" control."""
+
+    def test_no_group_by_means_no_groups_key(self, client, user):
+        TripFactory(user=user)
+
+        assert "groups" not in client.get(LIST_URL).json()["data"]
+
+    def test_an_unknown_grouping_is_ignored_rather_than_a_400(self, client, user):
+        TripFactory(user=user)
+
+        response = client.get(LIST_URL, {"group_by": "colour"})
+
+        assert response.status_code == 200
+        assert "groups" not in response.json()["data"]
+
+    def test_results_stay_flat_alongside_the_groups(self, client, user):
+        """The cards render from `results`, the chips from `groups` — one request."""
+        TripFactory(user=user)
+
+        body = client.get(LIST_URL, {"group_by": "status"}).json()["data"]
+
+        assert len(body["results"]) == 1
+        assert body["pagination"]["count"] == 1
+        assert body["groups"]
+
+    def test_group_by_status_counts_and_labels(self, client, user):
+        TripFactory(
+            user=user,
+            start_date=TODAY - timedelta(days=1),
+            end_date=TODAY + timedelta(days=1),
+        )
+        TripFactory.create_batch(3, user=user)  # PLANNED
+        TripFactory(
+            user=user,
+            start_date=TODAY - timedelta(days=9),
+            end_date=TODAY - timedelta(days=2),
+        )
+
+        groups = client.get(LIST_URL, {"group_by": "status"}).json()["data"]["groups"]
+
+        assert groups == [
+            {"key": "ONGOING", "label": "Ongoing", "count": 1},
+            {"key": "PLANNED", "label": "Upcoming", "count": 3},
+            {"key": "COMPLETED", "label": "Completed", "count": 1},
+        ]
+
+    def test_empty_statuses_are_omitted(self, client, user):
+        TripFactory(user=user)
+
+        groups = client.get(LIST_URL, {"group_by": "status"}).json()["data"]["groups"]
+
+        assert [group["key"] for group in groups] == ["PLANNED"]
+
+    def test_counts_cover_the_whole_set_not_just_the_page(self, client, user):
+        """A chip reading "Upcoming (25)" has to mean 25 trips, not 25 on page 1."""
+        TripFactory.create_batch(25, user=user)
+
+        body = client.get(LIST_URL, {"group_by": "status", "page_size": 5}).json()["data"]
+
+        assert len(body["results"]) == 5
+        assert body["groups"][0]["count"] == 25
+
+    def test_grouping_respects_the_active_filters(self, client, user):
+        TripFactory(user=user, name="Keep me")
+        TripFactory(user=user, name="Filter me out")
+
+        body = client.get(LIST_URL, {"group_by": "status", "search": "keep"}).json()["data"]
+
+        assert body["groups"][0]["count"] == 1
+
+    def test_group_by_month(self, client, user):
+        TripFactory(user=user, start_date=date(2026, 11, 2), end_date=date(2026, 11, 9))
+        TripFactory(user=user, start_date=date(2026, 11, 20), end_date=date(2026, 11, 25))
+        TripFactory(user=user, start_date=date(2027, 1, 5), end_date=date(2027, 1, 9))
+
+        groups = client.get(LIST_URL, {"group_by": "month"}).json()["data"]["groups"]
+
+        assert groups == [
+            {"key": "2026-11", "label": "November 2026", "count": 2},
+            {"key": "2027-01", "label": "January 2027", "count": 1},
+        ]
+
+    def test_group_by_country(self, client, user):
+        india = CountryFactory(name="India", iso2="IN")
+        france = CountryFactory(name="France", iso2="FR")
+        first = TripFactory(user=user)
+        TripStopFactory(
+            trip=first,
+            city=CityFactory(country=india),
+            start_date=first.start_date,
+            end_date=first.start_date + timedelta(days=1),
+        )
+        second = TripFactory(user=user)
+        TripStopFactory(
+            trip=second,
+            city=CityFactory(country=india),
+            start_date=second.start_date,
+            end_date=second.start_date + timedelta(days=1),
+        )
+        TripStopFactory(
+            trip=second,
+            city=CityFactory(country=france),
+            start_date=second.start_date + timedelta(days=2),
+            end_date=second.start_date + timedelta(days=3),
+        )
+
+        groups = client.get(LIST_URL, {"group_by": "country"}).json()["data"]["groups"]
+
+        assert groups == [
+            {"key": str(india.pk), "label": "India", "count": 2},
+            {"key": str(france.pk), "label": "France", "count": 1},
+        ]
+
+    def test_a_trip_with_two_stops_in_one_country_counts_once(self, client, user):
+        india = CountryFactory(name="India", iso2="IN")
+        trip = TripFactory(user=user)
+        for offset in (0, 3):
+            TripStopFactory(
+                trip=trip,
+                city=CityFactory(country=india),
+                start_date=trip.start_date + timedelta(days=offset),
+                end_date=trip.start_date + timedelta(days=offset + 1),
+            )
+
+        groups = client.get(LIST_URL, {"group_by": "country"}).json()["data"]["groups"]
+
+        assert groups == [{"key": str(india.pk), "label": "India", "count": 1}]
+
+    def test_a_trip_with_no_stops_is_in_no_country_group(self, client, user):
+        TripFactory(user=user)
+
+        assert client.get(LIST_URL, {"group_by": "country"}).json()["data"]["groups"] == []

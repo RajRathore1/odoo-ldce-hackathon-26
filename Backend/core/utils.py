@@ -67,3 +67,46 @@ def build_share_url(share_token) -> str:
     the frontend calls `/api/v1/public/trips/{token}/` to fill the page.
     """
     return f"{settings.FRONTEND_BASE_URL}/trips/shared/{share_token}"
+
+
+def seed_upsert(model, unique_lookups: list[dict], defaults: dict):
+    """
+    `update_or_create` for a model with **more than one** unique field.
+
+    `Country.name` and `Country.iso2` are both unique, as are
+    `ActivityCategory.name` and `.slug`. Keying `update_or_create` on one of them
+    still raises `IntegrityError` when a row already exists under the other —
+    which is exactly what happens when a seed command runs over a database that
+    was previously filled from `dev_seed.json`.
+
+    Also revives soft-deleted rows rather than colliding with them: a deleted
+    row still occupies its unique key (trap #3), so it has to be found through
+    `all_objects` and undeleted, not inserted around.
+
+    Takes the model as an argument, so this stays app-agnostic and `core`
+    imports nothing from `apps/`. Returns `(instance, created)`.
+
+        seed_upsert(Country, [{"iso2": "IN"}, {"name": "India"}], {"region": "Asia"})
+    """
+    manager = getattr(model, "all_objects", model.objects)
+
+    existing = None
+    for lookup in unique_lookups:
+        existing = manager.filter(**lookup).first()
+        if existing is not None:
+            break
+
+    fields = dict(defaults)
+    for lookup in unique_lookups:
+        fields.update(lookup)
+
+    if existing is None:
+        return model.objects.create(**fields), True
+
+    for name, value in fields.items():
+        setattr(existing, name, value)
+    if getattr(existing, "is_deleted", False):
+        existing.is_deleted = False
+        existing.deleted_at = None
+    existing.save()
+    return existing, False

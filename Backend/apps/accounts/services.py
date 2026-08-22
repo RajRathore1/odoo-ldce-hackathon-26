@@ -80,6 +80,7 @@ def blacklist_all_tokens(user: User) -> int:
 
 # ------------------------------------------------------------------- passwords
 
+
 @transaction.atomic
 def issue_password_reset_token(email: str) -> PasswordResetToken | None:
     """
@@ -168,6 +169,7 @@ def change_password(user: User, new_password: str) -> None:
 
 # --------------------------------------------------------------------- account
 
+
 @transaction.atomic
 def delete_account(user: User) -> None:
     """
@@ -182,3 +184,48 @@ def delete_account(user: User) -> None:
     user.is_active = False
     user.save(update_fields=["is_active", "updated_at"])
     user.delete()  # soft
+
+
+# ---------------------------------------------------------------------- admin
+
+
+@transaction.atomic
+def admin_update_user(user: User, **fields) -> User:
+    """
+    Moderate an account: activate, deactivate, promote, demote.
+
+    Deactivating **kills the sessions too**. Without that, an account an admin
+    has just suspended keeps working until its access token expires, which is
+    the whole point of suspending it.
+    """
+    was_active = user.is_active
+    for name, value in fields.items():
+        setattr(user, name, value)
+    user.save()
+
+    if was_active and not user.is_active:
+        blacklist_all_tokens(user)
+        logger.info("Admin deactivated user %s; sessions revoked", user.pk)
+    return user
+
+
+@transaction.atomic
+def admin_delete_user(user: User) -> None:
+    """Soft-delete an account from the admin tree. Same path as self-service."""
+    delete_account(user)
+    logger.info("Admin soft-deleted user %s", user.pk)
+
+
+@transaction.atomic
+def admin_restore_user(user: User) -> User:
+    """
+    Undo a soft delete.
+
+    Reactivates as well as undeleting: `delete_account` set `is_active=False`, so
+    restoring without it would give back a row nobody can log in to.
+    """
+    user.restore()
+    user.is_active = True
+    user.save(update_fields=["is_active", "updated_at"])
+    logger.info("Admin restored user %s", user.pk)
+    return user

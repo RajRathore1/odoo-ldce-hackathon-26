@@ -8,7 +8,7 @@ trips — filters. Owner: Dev A.
 from django_filters import rest_framework as filters
 
 from apps.trips.models import Trip
-from core.filters import CharInFilter, NumberInFilter
+from core.filters import CharInFilter, NumberInFilter, SoftDeleteFilterMixin
 
 
 class TripFilterSet(filters.FilterSet):
@@ -50,3 +50,26 @@ class TripFilterSet(filters.FilterSet):
         return queryset.filter(
             stops__is_deleted=False, stops__city__country__in=value
         ).distinct()
+
+
+class AdminTripFilterSet(SoftDeleteFilterMixin):
+    """
+    `GET /admin/trips/`. Wider than `TripFilterSet`: a moderator filters by
+    owner and by deleted state, neither of which means anything to a user
+    looking at their own trips.
+    """
+
+    status = CharInFilter(field_name="status", lookup_expr="in")
+    created_after = filters.DateTimeFilter(field_name="created_at", lookup_expr="gte")
+    created_before = filters.DateTimeFilter(field_name="created_at", lookup_expr="lte")
+
+    class Meta:
+        model = Trip
+        fields = (
+            "user",
+            "status",
+            "is_public",
+            "created_after",
+            "created_before",
+            "include_deleted",
+        )

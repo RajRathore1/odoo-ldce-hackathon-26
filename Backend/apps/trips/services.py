@@ -6,6 +6,7 @@ Returns objects, never response bodies.
 """
 
 import logging
+import uuid
 
 from django.db import transaction
 from django.db.models import F, Max
@@ -13,7 +14,9 @@ from rest_framework.exceptions import ValidationError
 
 from apps.activities.models import Activity
 from apps.geo.models import City
+from apps.trips.constants import TripStatus
 from apps.trips.models import Trip, TripActivity, TripStop
+from core.utils import shift_dates
 
 logger = logging.getLogger(__name__)
 
@@ -260,3 +263,138 @@ def reorder_trip_activities(*, trip: Trip, items: list[dict]) -> list[TripActivi
     TripActivity.objects.bulk_update(touched, sorted(fields))
     logger.info("Reordered %s activities on trip %s", len(touched), trip.pk)
     return sorted(touched, key=lambda item: (item.day_date, item.order, item.pk))
+
+
+# ------------------------------------------------------------- share and copy
+
+
+@transaction.atomic
+def set_trip_public(trip: Trip, *, is_public: bool) -> Trip:
+    """
+    Publish or unpublish a trip.
+
+    The `share_token` is left alone: revoking and re-sharing should give back
+    the *same* link, because people have it in a chat thread. Killing old links
+    is what `regenerate_share_token` is for, and it is a separate, deliberate act.
+    """
+    trip.is_public = is_public
+    trip.save(update_fields=["is_public", "updated_at"])
+    logger.info("Trip %s is_public=%s", trip.pk, is_public)
+    return trip
+
+
+@transaction.atomic
+def regenerate_share_token(trip: Trip) -> Trip:
+    """Issue a new token, which kills every link already handed out."""
+    trip.share_token = uuid.uuid4()
+    trip.save(update_fields=["share_token", "updated_at"])
+    logger.info("Trip %s share token regenerated", trip.pk)
+    return trip
+
+
+def record_public_view(trip: Trip) -> None:
+    """
+    Count a view of the public page.
+
+    An `F()` increment rather than read-modify-write: two people opening the
+    link at once must not lose a count. Deliberately not filtered to strangers —
+    the owner previewing their own link counts too, which is the simpler and
+    more predictable rule.
+    """
+    Trip.objects.filter(pk=trip.pk).update(views_count=F("views_count") + 1)
+
+
+@transaction.atomic
+def copy_trip(*, source: Trip, user, start_date=None, name: str | None = None) -> Trip:
+    """
+    Deep-copy a shared trip into somebody's account: stops, activities, expenses.
+
+    Every date is **rebased** so day one lands on `start_date` (decision D9) —
+    copying a past itinerary into the future is the actual use case, and a copy
+    that keeps last year's dates is immediately useless. Omitting `start_date`
+    keeps the original dates.
+
+    The copy is private and a `DRAFT` with a fresh `share_token`: inheriting the
+    original's link would let one person's revoke break another person's trip.
+    `DRAFT` also survives the status sync, so a copy of a finished trip does not
+    immediately present itself as `COMPLETED`.
+    """
+    from apps.budget.models import Expense  # deferred: budget → trips
+
+    offset = (start_date - source.start_date).days if start_date else 0
+
+    trip = Trip.objects.create(
+        user=user,
+        name=name or source.name,
+        description=source.description,
+        start_date=shift_dates(source.start_date, offset),
+        end_date=shift_dates(source.end_date, offset),
+        # Explicit, so `save()` does not derive it from the rebased dates.
+        status=TripStatus.DRAFT,
+        # The same file, not a copy of it: nothing in this project deletes media,
+        # so two rows pointing at one image is safe and the copy keeps its cover.
+        cover_photo=source.cover_photo,
+        total_budget=source.total_budget,
+        currency=source.currency,
+        is_public=False,
+        copied_from=source,
+    )
+
+    stops = {}
+    for stop in TripStop.objects.filter(trip=source).order_by("order"):
+        stops[stop.pk] = TripStop.objects.create(
+            trip=trip,
+            city=stop.city,
+            title=stop.title,
+            start_date=shift_dates(stop.start_date, offset),
+            end_date=shift_dates(stop.end_date, offset),
+            order=stop.order,
+            budget=stop.budget,
+            notes=stop.notes,
+        )
+        # Same counter the normal add path bumps, so a copied trip's cities
+        # still register on /cities/popular/.
+        City.objects.filter(pk=stop.city_id).update(popularity_score=F("popularity_score") + 1)
+
+    TripActivity.objects.bulk_create(
+        [
+            TripActivity(
+                trip_stop=stops[item.trip_stop_id],
+                activity=item.activity,
+                custom_title=item.custom_title,
+                day_date=shift_dates(item.day_date, offset),
+                start_time=item.start_time,
+                end_time=item.end_time,
+                # The snapshot travels with the copy. Re-reading the catalog here
+                # would silently reprice somebody else's plan.
+                cost=item.cost,
+                currency=item.currency,
+                duration_minutes=item.duration_minutes,
+                order=item.order,
+                notes=item.notes,
+            )
+            for item in TripActivity.objects.filter(
+                trip_stop__trip=source, trip_stop__is_deleted=False
+            ).order_by("day_date", "order")
+        ]
+    )
+
+    Expense.objects.bulk_create(
+        [
+            Expense(
+                trip=trip,
+                trip_stop=stops.get(item.trip_stop_id),
+                category=item.category,
+                title=item.title,
+                amount=item.amount,
+                currency=item.currency,
+                incurred_on=shift_dates(item.incurred_on, offset),
+                is_estimated=item.is_estimated,
+                notes=item.notes,
+            )
+            for item in Expense.objects.filter(trip=source)
+        ]
+    )
+
+    logger.info("Trip %s copied from %s for user %s", trip.pk, source.pk, user.pk)
+    return trip

@@ -13,6 +13,7 @@ them, so every nested serializer is a real reference rather than a lazy lookup.
 
 from rest_framework import serializers
 
+from apps.accounts.serializers import PublicUserSerializer
 from apps.geo.serializers import CityMiniSerializer
 from apps.trips.models import Trip, TripActivity, TripStop
 from apps.trips.selectors import ZERO_COST_SUMMARY
@@ -413,7 +414,36 @@ class TripWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"end_date": "End date must be on or after the start date."}
             )
+        self._reject_orphaned_stops(start_date, end_date)
         return attrs
+
+    def _reject_orphaned_stops(self, start_date, end_date) -> None:
+        """
+        Refuse a date change that would leave a stop outside its own trip.
+
+        Without this, shrinking a trip silently strands its stops: the itinerary
+        only emits dates inside the trip range, so those days — and every
+        activity on them — would vanish from the screen while the rows sat in the
+        database. Cheap query, and only on an update that moves a date.
+        """
+        if self.instance is None:
+            return
+        if (start_date, end_date) == (self.instance.start_date, self.instance.end_date):
+            return
+
+        orphaned = self.instance.stops.exclude(
+            start_date__gte=start_date, end_date__lte=end_date
+        )
+        titles = [stop.display_title for stop in orphaned]
+        if titles:
+            raise serializers.ValidationError(
+                {
+                    "start_date": (
+                        f"These stops would fall outside the new dates: "
+                        f"{', '.join(titles)}. Move or remove them first."
+                    )
+                }
+            )
 
 
 class CoverPhotoSerializer(serializers.ModelSerializer):
@@ -424,3 +454,176 @@ class CoverPhotoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trip
         fields = ("cover_photo",)
+
+
+# ------------------------------------------------------------------ itinerary
+
+
+class ItineraryTripSerializer(serializers.ModelSerializer):
+    """The header block of the itinerary response — enough to caption the screen."""
+
+    duration_days = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Trip
+        fields = ("id", "name", "start_date", "end_date", "duration_days", "currency")
+
+
+class ItineraryStopSerializer(serializers.Serializer):
+    """
+    The stop as the itinerary shows it: which section a day belongs to, no more.
+
+    Deliberately not `TripStopSerializer` — that one carries dates, budget and
+    an `activities_count`, all of which the itinerary either repeats or would
+    have to query per stop.
+    """
+
+    id = serializers.IntegerField(read_only=True)
+    title = serializers.CharField(source="display_title", read_only=True)
+    city = CityMiniSerializer(read_only=True)
+    order = serializers.IntegerField(read_only=True)
+
+
+class ItineraryDaySerializer(serializers.Serializer):
+    """One day. `stop` is null on a day no stop covers; `activities` may be empty."""
+
+    date = serializers.DateField(read_only=True)
+    day_number = serializers.IntegerField(read_only=True)
+    stop = ItineraryStopSerializer(read_only=True, allow_null=True)
+    activities = TripActivitySerializer(many=True, read_only=True)
+    day_total_cost = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
+
+class ItineraryStopGroupSerializer(serializers.Serializer):
+    """One group of `?view=stop`. `stop` is null for days no stop covers."""
+
+    stop = ItineraryStopSerializer(read_only=True, allow_null=True)
+    days = ItineraryDaySerializer(many=True, read_only=True)
+    stop_total_cost = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+
+
+class ItineraryTotalsSerializer(serializers.Serializer):
+    """
+    Trip-wide cost, from the one budget formula.
+
+    `activities_cost` is the sum of the snapshotted `TripActivity.cost` values;
+    `expenses_cost` is the one-off `Expense` rows. Both are zero until task A6.
+    """
+
+    activities_cost = serializers.DecimalField(max_digits=12, decimal_places=2)
+    expenses_cost = serializers.DecimalField(max_digits=12, decimal_places=2)
+    grand_total = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class ItinerarySerializer(serializers.Serializer):
+    """
+    `GET /trips/{id}/itinerary/`.
+
+    `days` is present for `?view=day` (the default) and `stops` for
+    `?view=stop`; the other is absent rather than null, so the frontend branches
+    on the parameter it sent.
+    """
+
+    trip = ItineraryTripSerializer(read_only=True)
+    days = ItineraryDaySerializer(many=True, read_only=True, required=False)
+    stops = ItineraryStopGroupSerializer(many=True, read_only=True, required=False)
+    totals = ItineraryTotalsSerializer(read_only=True)
+
+
+# --------------------------------------------------------------------- sharing
+
+
+class TripShareSerializer(serializers.ModelSerializer):
+    """The body `POST|DELETE /trips/{id}/share/` and `.../regenerate/` return."""
+
+    share_url = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = Trip
+        fields = ("is_public", "share_token", "share_url", "views_count")
+
+
+class TripCopySerializer(serializers.Serializer):
+    """
+    `POST /public/trips/{share_token}/copy/`.
+
+    Both fields optional: no `start_date` keeps the original dates, no `name`
+    keeps the original name.
+    """
+
+    start_date = serializers.DateField(required=False)
+    name = serializers.CharField(required=False, max_length=150)
+
+
+class PublicTripSerializer(serializers.Serializer):
+    """
+    `GET /public/trips/{share_token}/` — the itinerary, minus anything private.
+
+    Two deliberate absences (trap #7): the owner is reduced to
+    `accounts.PublicUserSerializer` (first name and avatar, no email, no phone),
+    and **`total_budget` and `remaining` are not here at all**. `grand_total`
+    stays — what a trip costs is the point of sharing an itinerary; what its
+    owner hoped to spend is not.
+    """
+
+    trip = ItineraryTripSerializer(read_only=True)
+    owner = PublicUserSerializer(read_only=True)
+    description = serializers.CharField(read_only=True)
+    cover_photo = serializers.ImageField(read_only=True, allow_null=True)
+    views_count = serializers.IntegerField(read_only=True)
+    days = ItineraryDaySerializer(many=True, read_only=True)
+    totals = ItineraryTotalsSerializer(read_only=True)
+
+
+# ---------------------------------------------------------------------- admin
+
+
+class AdminTripSerializer(serializers.ModelSerializer):
+    """
+    One row of `GET /admin/trips/` — trip moderation.
+
+    Carries the owner's email and the deleted flag, neither of which appears on
+    any user-facing trip shape. That is the reason the admin tree has its own
+    serializers: a moderation view is a different consumer, not the same one
+    with a flag set.
+    """
+
+    user_email = serializers.EmailField(source="user.email", read_only=True)
+    user_id = serializers.IntegerField(read_only=True)
+    duration_days = serializers.IntegerField(read_only=True)
+    stops_count = serializers.SerializerMethodField()
+    activities_count = serializers.SerializerMethodField()
+    estimated_cost = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Trip
+        fields = (
+            "id",
+            "name",
+            "user_id",
+            "user_email",
+            "status",
+            "start_date",
+            "end_date",
+            "duration_days",
+            "stops_count",
+            "activities_count",
+            "total_budget",
+            "estimated_cost",
+            "currency",
+            "is_public",
+            "views_count",
+            "is_deleted",
+            "created_at",
+        )
+
+    def get_stops_count(self, trip) -> int:
+        return len(trip.stops.all())
+
+    def get_activities_count(self, trip) -> int:
+        return getattr(trip, "activities_count", 0)
+
+    def get_estimated_cost(self, trip) -> str:
+        """From the page-wide bulk lookup — the same formula the user sees."""
+        summary = self.context.get("cost_summaries", {}).get(trip.pk)
+        return str(summary["grand_total"]) if summary else "0.00"

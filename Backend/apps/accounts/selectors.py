@@ -7,6 +7,8 @@ READ layer: querysets, `annotate`, `aggregate`, `select_related` /
 
 from decimal import Decimal
 
+from django.db.models import Count, Q
+
 from apps.accounts.models import User
 
 
@@ -47,3 +49,34 @@ def user_stats(user: User) -> dict:
         "total_planned_spend": Decimal("0.00"),
         "currency": user.currency,
     }
+
+
+def admin_user_queryset():
+    """
+    `GET /admin/users/` — the moderation table.
+
+    Reads `all_objects`, unlike every user-facing queryset: an admin has to be
+    able to see a soft-deleted account in order to restore it. The list still
+    hides them by default — `core.filters.SoftDeleteFilterMixin` gives the
+    moderator `?include_deleted=true` when they want them.
+
+    Both counters are filtered to live rows: a join does not go through the
+    soft-delete manager, so without it a deleted trip keeps counting.
+
+    ⚠️ `distinct=True` on both is **not** cosmetic. Two `Count`s over different
+    reverse relations join both tables in one query, so a user with 3 trips and
+    2 posts would otherwise report 6 of each — the classic Django multiple-join
+    inflation.
+
+    `posts` is reached through the reverse accessor rather than by importing
+    `community`, which `accounts` may not do (`LAYOUT.md` §5). The FK is declared
+    on the other side, so the accessor exists without an import.
+    """
+    return (
+        User.all_objects.select_related("city", "country")
+        .annotate(
+            trips_count=Count("trips", filter=Q(trips__is_deleted=False), distinct=True),
+            posts_count=Count("posts", filter=Q(posts__is_deleted=False), distinct=True),
+        )
+        .order_by("-created_at")
+    )

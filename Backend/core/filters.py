@@ -36,12 +36,34 @@ class SoftDeleteFilterMixin(filters.FilterSet):
     Only useful on a view whose queryset comes from `Model.all_objects` — the
     default `objects` manager has already filtered them out, so there is nothing
     left for this to reveal.
+
+    ⚠️ The exclusion lives in `filter_queryset`, not in the filter method,
+    because **django-filter does not call a method filter when its parameter is
+    absent**. With the rule in the method, a request that simply omits
+    `include_deleted` got the raw `all_objects` queryset — every soft-deleted row
+    on an endpoint whose whole purpose is to hide them by default.
     """
 
-    include_deleted = filters.BooleanFilter(method="filter_include_deleted")
+    include_deleted = filters.BooleanFilter(
+        method="filter_include_deleted",
+        label="Include soft-deleted rows",
+    )
 
     def filter_include_deleted(self, queryset, name, value):
-        return queryset if value else queryset.filter(is_deleted=False)
+        """
+        Deliberately a pass-through.
+
+        `django_filters` needs a callable to bind the parameter and put it in
+        `form.cleaned_data`, but the decision has to be made where the *absent*
+        case is also visible — see `filter_queryset` below.
+        """
+        return queryset
+
+    def filter_queryset(self, queryset):
+        queryset = super().filter_queryset(queryset)
+        if not self.form.cleaned_data.get("include_deleted"):
+            queryset = queryset.filter(is_deleted=False)
+        return queryset
 
     class Meta:
         abstract = True
