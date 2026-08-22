@@ -151,7 +151,7 @@ export default function ProfilePage() {
           description="Trips you've already locked dates in for."
         />
         {preplanned.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
             {preplanned.map((trip) => (
               <TripCard key={trip.id} trip={trip} href={`/trips/${trip.id}`} />
             ))}
@@ -167,7 +167,7 @@ export default function ProfilePage() {
           description="Trips you've completed or are on right now."
         />
         {previous.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
             {previous.map((trip) => (
               <TripCard key={trip.id} trip={trip} href={`/trips/${trip.id}`} />
             ))}

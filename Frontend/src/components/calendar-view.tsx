@@ -223,7 +223,7 @@ export function CalendarView() {
       <section>
         <SectionHeader title={`Trips in ${monthNames[cursor.month]} ${cursor.year}`} />
         {monthTrips.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
             {monthTrips.map((trip) => (
               <TripCard key={trip.id} trip={trip} href={`/trips/${trip.id}`} />
             ))}

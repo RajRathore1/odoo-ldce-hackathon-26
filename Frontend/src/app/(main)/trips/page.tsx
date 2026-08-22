@@ -76,7 +76,7 @@ export default function TripsPage() {
             </h2>
 
             {group.trips.length > 0 ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
                 {group.trips.map((trip, tripIndex) => (
                   <div
                     key={trip.id}
