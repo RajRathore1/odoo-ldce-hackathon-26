@@ -164,3 +164,21 @@ export function TrendUpIcon({ className }: IconProps) {
     </svg>
   );
 }
+
+export function LogOutIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M8 17H5a1.5 1.5 0 0 1-1.5-1.5v-11A1.5 1.5 0 0 1 5 3h3" />
+      <path d="M13 14l4-4-4-4M17 10H7" />
+    </svg>
+  );
+}

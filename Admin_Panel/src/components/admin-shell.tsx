@@ -1,16 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ActivityIcon,
   BellIcon,
   ChartIcon,
   DashboardIcon,
+  LogOutIcon,
   MapPinIcon,
   SearchIcon,
   UsersIcon,
 } from "@/components/icons";
 import { cn } from "@/lib/cn";
+import { clearAdminAuthed } from "@/lib/admin-auth";
 import { useActiveSection } from "@/lib/use-active-section";
 
 function GlobeMark() {
@@ -59,8 +62,14 @@ const navItems = [
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const activeId = useActiveSection(navItems.map((item) => item.id));
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  function handleLogout() {
+    clearAdminAuthed();
+    router.push("/login");
+  }
 
   return (
     <div className="flex min-h-screen bg-subtle">
@@ -146,6 +155,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                 <p className="text-xs text-text-muted">Super admin</p>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label="Log out"
+              className="rounded-full p-2 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+            >
+              <LogOutIcon className="size-5" />
+            </button>
           </div>
 
           {mobileNavOpen && (
