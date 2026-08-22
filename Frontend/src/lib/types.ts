@@ -23,6 +23,7 @@ export type Region = {
   tripCount: number;
   fromPrice: number;
   cover: CoverTone;
+  image: string;
 };
 
 export type SelectOption = {
