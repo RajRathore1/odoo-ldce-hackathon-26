@@ -52,12 +52,35 @@ The city and activity tables are empty until the Step 4 import/seed.
 
 ## Endpoints
 
-| Method | Path | Auth |
-|---|---|---|
-| GET | `/api/cities/` | public |
-| GET | `/api/cities/{id}/` | public |
-| GET | `/api/activities/` | public |
-| GET | `/api/activities/{id}/` | public |
+### Auth (`/api/auth/`)
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST | `register/` | public | returns user + token pair |
+| POST | `login/` | public | email + password |
+| POST | `refresh/` | public | rotates the refresh token |
+| POST | `logout/` | bearer | blacklists the refresh token |
+| POST | `password-reset/` | public | always 200; never reveals if the email exists |
+| POST | `password-reset/confirm/` | public | takes `uid`, `token`, `new_password` |
+| GET PATCH DELETE | `me/` | bearer | PATCH accepts multipart for `photo`; DELETE is permanent |
+| GET POST | `me/saved-destinations/` | bearer | |
+| DELETE | `me/saved-destinations/{id}/` | bearer | |
+
+Access tokens last 60 minutes, refresh tokens 7 days with rotation and
+blacklist-after-rotation. Send `Authorization: Bearer <access>`.
+
+Reset mail prints to the console in development. The link points at
+`FRONTEND_PASSWORD_RESET_URL` with `?uid=&token=` appended; the frontend
+reads those off the query string and posts them to the confirm endpoint.
+
+### Catalogue (public)
+
+| Method | Path |
+|---|---|
+| GET | `/api/cities/` |
+| GET | `/api/cities/{id}/` |
+| GET | `/api/activities/` |
+| GET | `/api/activities/{id}/` |
 
 `/api/cities/` supports `?search=` (transliterated — `zurich`, `Zürich` and
 `zurich switzerland` all match), `?country=`, `?country_code=`, `?continent=`,

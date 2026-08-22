@@ -197,3 +197,10 @@ EMAIL_BACKEND = (
     else "django.core.mail.backends.smtp.EmailBackend"
 )
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@globetrotter.local")
+
+# Where the emailed reset link points; the frontend reads uid/token off the
+# query string and posts them back to /api/auth/password-reset/confirm/.
+FRONTEND_PASSWORD_RESET_URL = env(
+    "FRONTEND_PASSWORD_RESET_URL",
+    default="http://localhost:5173/reset-password",
+)
