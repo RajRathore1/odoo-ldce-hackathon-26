@@ -9,7 +9,12 @@ import {
   useState,
 } from "react";
 import { api, onSignedOut } from "@/lib/api/client";
-import { clearTokens, hasSession, storeTokens } from "@/lib/api/tokens";
+import {
+  clearTokens,
+  hasSession,
+  readTokens,
+  storeTokens,
+} from "@/lib/api/tokens";
 import type { AuthResult, AuthUser, RegisterPayload } from "@/lib/api/types";
 
 type AuthState = {
@@ -29,8 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // localStorage is not readable while rendering on the server, so the very
-  // first paint always starts as "unknown" and settles here.
+  // Cookies are not read during the server render, so the first paint always
+  // starts as "unknown" and settles here.
   useEffect(() => {
     let active = true;
 
@@ -87,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    const refresh = window.localStorage.getItem("gt_refresh");
+    const { refresh } = readTokens();
 
     if (refresh) {
       // Best effort: the tokens go regardless, so a backend hiccup can never
