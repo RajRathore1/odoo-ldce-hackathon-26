@@ -23,6 +23,7 @@ export function StatCard({
   icon: Icon,
   tone = "primary",
   style,
+  featured = false,
 }: {
   label: string;
   value: number;
@@ -31,9 +32,35 @@ export function StatCard({
   icon: ComponentType<{ className?: string }>;
   tone?: Tone;
   style?: React.CSSProperties;
+  featured?: boolean;
 }) {
   const animated = useCountUp(value);
   const display = format ? format(animated) : animated.toLocaleString("en-IN");
+
+  if (featured) {
+    return (
+      <div
+        style={style}
+        className="animate-fade-up rounded-2xl bg-primary p-6 text-white shadow-md sm:col-span-2 sm:p-8"
+      >
+        <div className="flex items-center justify-between">
+          <span className="flex size-12 items-center justify-center rounded-xl bg-white/15 text-accent">
+            <Icon className="size-6" />
+          </span>
+          {trend && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium text-white">
+              <TrendUpIcon className="size-3" />
+              {trend}
+            </span>
+          )}
+        </div>
+        <p className="mt-5 text-sm font-medium text-white/70">{label}</p>
+        <p className="mt-1 font-heading text-3xl font-semibold tabular-nums sm:text-4xl">
+          {display}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div

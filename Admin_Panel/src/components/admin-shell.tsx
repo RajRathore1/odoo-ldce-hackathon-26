@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ActivityIcon,
   BellIcon,
@@ -7,6 +9,8 @@ import {
   SearchIcon,
   UsersIcon,
 } from "@/components/icons";
+import { cn } from "@/lib/cn";
+import { useActiveSection } from "@/lib/use-active-section";
 
 function GlobeMark() {
   return (
@@ -26,14 +30,16 @@ function GlobeMark() {
 }
 
 const navItems = [
-  { href: "#overview", label: "Overview", icon: DashboardIcon },
-  { href: "#cities", label: "Cities", icon: MapPinIcon },
-  { href: "#activities", label: "Activities", icon: ActivityIcon },
-  { href: "#analytics", label: "Analytics", icon: ChartIcon },
-  { href: "#users", label: "Users", icon: UsersIcon },
+  { id: "overview", label: "Overview", icon: DashboardIcon },
+  { id: "cities", label: "Cities", icon: MapPinIcon },
+  { id: "activities", label: "Activities", icon: ActivityIcon },
+  { id: "analytics", label: "Analytics", icon: ChartIcon },
+  { id: "users", label: "Users", icon: UsersIcon },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
+  const activeId = useActiveSection(navItems.map((item) => item.id));
+
   return (
     <div className="flex min-h-screen bg-subtle">
       <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface px-4 py-6 lg:flex">
@@ -45,16 +51,31 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="mt-8 flex-1 space-y-1">
-          {navItems.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-text-muted transition-colors hover:bg-bg hover:text-text"
-            >
-              <item.icon className="size-4" />
-              {item.label}
-            </a>
-          ))}
+          {navItems.map((item) => {
+            const active = item.id === activeId;
+            return (
+              <a
+                key={item.id}
+                href={`#${item.id}`}
+                aria-current={active ? "true" : undefined}
+                className={cn(
+                  "relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-primary/8 text-primary"
+                    : "text-text-muted hover:bg-bg hover:text-text",
+                )}
+              >
+                <span
+                  className={cn(
+                    "absolute left-0 h-5 w-0.5 rounded-full bg-primary transition-opacity",
+                    active ? "opacity-100" : "opacity-0",
+                  )}
+                />
+                <item.icon className="size-4" />
+                {item.label}
+              </a>
+            );
+          })}
         </nav>
 
         <div className="rounded-xl bg-bg p-3 text-xs text-text-muted">

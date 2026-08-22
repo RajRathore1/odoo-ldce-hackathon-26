@@ -37,6 +37,9 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("joined");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [overrides, setOverrides] = useState<
+    Record<string, "active" | "suspended">
+  >({});
 
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
@@ -47,9 +50,20 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
     }
   }
 
+  function toggleStatus(user: AdminUser) {
+    const current = overrides[user.id] ?? user.status;
+    const next = current === "active" ? "suspended" : "active";
+    setOverrides((prev) => ({ ...prev, [user.id]: next }));
+  }
+
+  const effectiveUsers = useMemo(
+    () => users.map((user) => ({ ...user, status: overrides[user.id] ?? user.status })),
+    [users, overrides],
+  );
+
   const rows = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const filtered = users.filter((user) => {
+    const filtered = effectiveUsers.filter((user) => {
       const matchesQuery =
         !query ||
         [user.name, user.email, user.city].some((field) =>
@@ -70,7 +84,7 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
     });
 
     return sorted;
-  }, [users, search, status, sortKey, sortDirection]);
+  }, [effectiveUsers, search, status, sortKey, sortDirection]);
 
   return (
     <div className="space-y-4">
@@ -121,11 +135,15 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">City</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {rows.map((user) => (
-              <tr key={user.id} className="hover:bg-subtle/60">
+              <tr
+                key={user.id}
+                className="transition-colors hover:bg-subtle"
+              >
                 <td className="px-4 py-3 font-medium whitespace-nowrap">
                   <div className="flex items-center gap-2.5">
                     <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
@@ -160,13 +178,27 @@ export function UsersTable({ users }: { users: AdminUser[] }) {
                     {user.status === "active" ? "Active" : "Suspended"}
                   </span>
                 </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <button
+                    type="button"
+                    onClick={() => toggleStatus(user)}
+                    className={cn(
+                      "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                      user.status === "active"
+                        ? "border-border text-text-muted hover:border-danger/40 hover:text-danger"
+                        : "border-success/30 bg-success/10 text-success hover:bg-success/15",
+                    )}
+                  >
+                    {user.status === "active" ? "Suspend" : "Reactivate"}
+                  </button>
+                </td>
               </tr>
             ))}
 
             {rows.length === 0 && (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-4 py-8 text-center text-text-muted"
                 >
                   No users match these filters.

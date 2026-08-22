@@ -8,6 +8,8 @@ import {
   UsersIcon,
   WalletIcon,
 } from "@/components/icons";
+// One tone per icon, always — Users=primary, MapPin=accent, Wallet=success,
+// Chart=info, Activity=warning. Keeps icon color meaningful instead of ad hoc.
 import { PanelCard } from "@/components/panel-card";
 import { RankingList } from "@/components/ranking-list";
 import { StatCard } from "@/components/stat-card";
@@ -150,11 +152,29 @@ export function AdminDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
+          label={`Revenue · ${periodLabel}`}
+          value={data.kpis.revenue}
+          format={moneyCompact.format}
+          icon={WalletIcon}
+          trend="+8.9%"
+          featured
+          style={{ animationDelay: "0ms" }}
+        />
+        <StatCard
           label="Total users"
           value={staticStats.totalUsers + liveBump}
           icon={UsersIcon}
           tone="primary"
-          style={{ animationDelay: "0ms" }}
+          trend="+6.4%"
+          style={{ animationDelay: "60ms" }}
+        />
+        <StatCard
+          label="Active users"
+          value={staticStats.activeUsers}
+          icon={UsersIcon}
+          tone="primary"
+          trend="+3.2%"
+          style={{ animationDelay: "120ms" }}
         />
         <StatCard
           label={`Trips planned · ${periodLabel}`}
@@ -162,37 +182,22 @@ export function AdminDashboard() {
           icon={MapPinIcon}
           tone="accent"
           trend="+11.2%"
-          style={{ animationDelay: "60ms" }}
-        />
-        <StatCard
-          label={`Revenue · ${periodLabel}`}
-          value={data.kpis.revenue}
-          format={moneyCompact.format}
-          icon={WalletIcon}
-          tone="success"
-          trend="+8.9%"
-          style={{ animationDelay: "120ms" }}
+          style={{ animationDelay: "180ms" }}
         />
         <StatCard
           label="Avg. trip budget"
           value={data.kpis.avgBudget}
           format={moneyFull.format}
-          icon={ChartIcon}
-          tone="info"
-          style={{ animationDelay: "180ms" }}
-        />
-        <StatCard
-          label="Active users"
-          value={staticStats.activeUsers}
-          icon={UsersIcon}
+          icon={WalletIcon}
           tone="success"
+          trend="+2.1%"
           style={{ animationDelay: "240ms" }}
         />
         <StatCard
           label={`New sign-ups · ${periodLabel}`}
           value={data.kpis.newSignups}
           icon={ChartIcon}
-          tone="accent"
+          tone="info"
           trend="+19%"
           style={{ animationDelay: "300ms" }}
         />
@@ -201,6 +206,7 @@ export function AdminDashboard() {
           value={data.kpis.communityPosts}
           icon={ActivityIcon}
           tone="warning"
+          trend="+14%"
           style={{ animationDelay: "360ms" }}
         />
         <StatCard
@@ -208,7 +214,8 @@ export function AdminDashboard() {
           value={32}
           format={(value) => `${percent.format(value)}%`}
           icon={ChartIcon}
-          tone="primary"
+          tone="info"
+          trend="+1.8%"
           style={{ animationDelay: "420ms" }}
         />
       </div>

@@ -1,3 +1,5 @@
+import { cn } from "@/lib/cn";
+
 export function RankingList({
   items,
 }: {
@@ -7,30 +9,51 @@ export function RankingList({
 
   return (
     <ul className="space-y-4">
-      {items.map((item, index) => (
-        <li key={item.label} className="flex items-center gap-3">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-            {index + 1}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="truncate text-sm font-medium">{item.label}</p>
-              <p className="shrink-0 text-sm font-semibold text-text-muted">
-                {item.value.toLocaleString("en-IN")}
-              </p>
+      {items.map((item, index) => {
+        const intensity = Math.max(item.value / max, 0.25);
+
+        return (
+          <li key={item.label} className="flex items-center gap-3">
+            <span
+              className={cn(
+                "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                index === 0
+                  ? "bg-accent text-white"
+                  : "bg-primary/10 text-primary",
+              )}
+            >
+              {index + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-3">
+                <p
+                  className={cn(
+                    "truncate text-sm",
+                    index === 0 ? "font-semibold" : "font-medium",
+                  )}
+                >
+                  {item.label}
+                </p>
+                <p className="shrink-0 text-sm font-semibold text-text-muted">
+                  {item.value.toLocaleString("en-IN")}
+                </p>
+              </div>
+              {item.sublabel && (
+                <p className="text-xs text-text-muted">{item.sublabel}</p>
+              )}
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-subtle">
+                <div
+                  className="h-full rounded-full bg-accent transition-[width,opacity] duration-500 ease-out"
+                  style={{
+                    width: `${(item.value / max) * 100}%`,
+                    opacity: intensity,
+                  }}
+                />
+              </div>
             </div>
-            {item.sublabel && (
-              <p className="text-xs text-text-muted">{item.sublabel}</p>
-            )}
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-subtle">
-              <div
-                className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
-                style={{ width: `${(item.value / max) * 100}%` }}
-              />
-            </div>
-          </div>
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ul>
   );
 }
