@@ -337,8 +337,8 @@ class AdminUserSerializer(serializers.ModelSerializer):
         return getattr(user, "trips_count", 0)
 
     def get_posts_count(self, user) -> int:
-        """Always 0: the community app is P2 and cut. The key stays for the UI."""
-        return 0
+        """From the selector's annotation, like `trips_count`."""
+        return getattr(user, "posts_count", 0)
 
 
 class AdminUserDetailSerializer(AdminUserSerializer):

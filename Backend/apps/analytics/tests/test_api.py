@@ -93,6 +93,16 @@ class TestOverviewShape:
         assert body["budget"]["avg_trip_budget"] == "0.00"
         assert body["content"] == {"posts": 0, "comments": 0}
 
+    def test_the_content_tile_counts_real_posts(self, admin_client):
+        from apps.community.tests.factories import PostCommentFactory, PostFactory
+
+        post = PostFactory()
+        PostCommentFactory.create_batch(2, post=post)
+
+        body = admin_client.get(URL).json()["data"]
+
+        assert body["content"] == {"posts": 1, "comments": 2}
+
     def test_the_default_period_is_thirty_days(self, admin_client):
         assert admin_client.get(URL).json()["data"]["period"] == "30d"
 
@@ -199,12 +209,12 @@ class TestOverviewQueryBudget:
     ):
         """
         Rolling `bulk_trip_cost_summary` over every trip would give the same
-        numbers and scan the table to do it. Six aggregates plus the
+        numbers and scan the table to do it. Eight aggregates plus the
         authenticating user.
         """
         trip_with_cost()
 
-        with django_assert_num_queries(7) as captured:
+        with django_assert_num_queries(9) as captured:
             admin_client.get(URL)
 
         for _ in range(6):

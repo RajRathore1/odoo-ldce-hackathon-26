@@ -18,6 +18,7 @@ from django.utils import timezone
 
 from apps.analytics.constants import DEFAULT_PERIOD, PERIOD_DAYS, AnalyticsPeriod
 from apps.budget.services import platform_cost_totals
+from apps.community.models import CommunityPost, PostComment
 from apps.trips.models import Trip, TripStop
 
 ZERO = Decimal("0.00")
@@ -90,9 +91,10 @@ def overview(period: str = DEFAULT_PERIOD) -> dict:
             "currency": "INR",
             "total_planned_value": costs["grand_total"],
         },
-        # Community is P2 and cut (HANDOFF.md §3), so there is nothing to count.
-        # The keys stay so the tile renders zeros instead of breaking.
-        "content": {"posts": 0, "comments": 0},
+        "content": {
+            "posts": CommunityPost.objects.count(),
+            "comments": PostComment.objects.count(),
+        },
         "period": period,
     }
 
