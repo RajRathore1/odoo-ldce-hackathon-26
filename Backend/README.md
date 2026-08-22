@@ -48,7 +48,38 @@ cities-light's own migrations so Country/Region/SubRegion/City are created in
 There must be no `cities_light_*` tables; if you see any, the DB predates
 these settings — delete `db.sqlite3` and re-migrate.
 
-The city and activity tables are empty until the Step 4 import/seed.
+## Loading the catalogue
+
+Two routes. **Prefer the fixture** -- the live import is slow and needs network.
+
+```bash
+# Fast path (seconds): the committed GeoNames snapshot
+./venv/Scripts/python.exe manage.py loaddata geo/fixtures/cities_light.json.bz2
+
+# Slow path (10+ min, needs network): re-download from GeoNames
+./venv/Scripts/python.exe manage.py cities_light --force-import-all
+
+# Either way, then layer on the curated data:
+./venv/Scripts/python.exe manage.py seed_city_profiles   # cost_index, popularity, blurb
+./venv/Scripts/python.exe manage.py seed_activities      # the Activity catalogue
+```
+
+Both seed commands are idempotent -- re-running them updates in place. Each
+reports anything it could not match instead of failing, so a single bad
+fixture row never aborts the run; read that output rather than assuming
+silence means success.
+
+Two settings keep the import sane, both in `config/settings.py`:
+`CITIES_LIGHT_TRANSLATION_SOURCES = []` skips the alternate-names dump
+(hundreds of MB, and unused -- `search_names` is built from the name and
+country by cities-light's own receiver), and `CITIES_LIGHT_DATA_DIR` points
+downloads at `geo/data/` instead of inside site-packages. `geo/data/` is
+gitignored.
+
+`City.popularity` and `Activity.popularity` are **editorial browse scores**
+from the seed fixtures, not usage counts -- they give `?ordering=-popularity`
+something meaningful on day one. The admin dashboard's "top cities" aggregates
+real trip data at query time instead (Step 7).
 
 ## Endpoints
 

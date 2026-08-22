@@ -117,6 +117,16 @@ AUTH_USER_MODEL = "accounts.User"
 CITIES_LIGHT_APP_NAME = "geo"
 MIGRATION_MODULES = {"cities_light": None}
 
+# Skip the alternate-names download: it is hundreds of MB and slow to parse,
+# and we do not expose translations. City.search_names is built by
+# cities_light's own pre_save receiver from the name + country, so search
+# still works without it.
+CITIES_LIGHT_TRANSLATION_SOURCES = []
+
+# Default is a "data" dir inside site-packages; keep downloads in the project
+# so they survive a venv rebuild and stay out of the virtualenv.
+CITIES_LIGHT_DATA_DIR = BASE_DIR / "geo" / "data"
+
 
 # --------------------------------------------------------------- auth/password
 

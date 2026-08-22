@@ -55,3 +55,4 @@ desktop.ini
 # Django
 media/
 staticfiles/
+Backend/geo/data/

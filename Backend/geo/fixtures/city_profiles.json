@@ -1,0 +1,569 @@
+[
+  {
+    "name": "Paris",
+    "country": "FR",
+    "cost_index": 4.3,
+    "popularity": 98,
+    "blurb": "Boulevards, world-class museums and the food that started it all."
+  },
+  {
+    "name": "London",
+    "country": "GB",
+    "cost_index": 4.6,
+    "popularity": 97,
+    "blurb": "Free national museums, endless theatre and a pub on every corner."
+  },
+  {
+    "name": "Rome",
+    "country": "IT",
+    "cost_index": 3.4,
+    "popularity": 95,
+    "blurb": "Two thousand years of ruins, and the espresso is still a euro."
+  },
+  {
+    "name": "Tokyo",
+    "country": "JP",
+    "cost_index": 4.0,
+    "popularity": 96,
+    "blurb": "Neon districts, silent shrines and the best cheap food anywhere."
+  },
+  {
+    "name": "New York City",
+    "country": "US",
+    "cost_index": 4.8,
+    "popularity": 96,
+    "blurb": "Five boroughs that never quite stop moving."
+  },
+  {
+    "name": "Barcelona",
+    "country": "ES",
+    "cost_index": 3.2,
+    "popularity": 93,
+    "blurb": "Gaudi, beaches and dinner that starts at ten."
+  },
+  {
+    "name": "Amsterdam",
+    "country": "NL",
+    "cost_index": 4.1,
+    "popularity": 90,
+    "blurb": "Canal rings, Golden Age painting and bikes with right of way."
+  },
+  {
+    "name": "Istanbul",
+    "country": "TR",
+    "cost_index": 1.9,
+    "popularity": 92,
+    "blurb": "Two continents, one ferry ride, and bazaars older than most countries."
+  },
+  {
+    "name": "Bangkok",
+    "country": "TH",
+    "cost_index": 1.5,
+    "popularity": 94,
+    "blurb": "Street food capital of the world, and it barely costs anything."
+  },
+  {
+    "name": "Berlin",
+    "country": "DE",
+    "cost_index": 3.0,
+    "popularity": 89,
+    "blurb": "Cold War history, cheap rent energy and clubs that open at dawn."
+  },
+  {
+    "name": "Prague",
+    "country": "CZ",
+    "cost_index": 2.4,
+    "popularity": 88,
+    "blurb": "A gothic old town that survived the twentieth century intact."
+  },
+  {
+    "name": "Lisbon",
+    "country": "PT",
+    "cost_index": 2.6,
+    "popularity": 89,
+    "blurb": "Seven hills, tiled facades and Atlantic light."
+  },
+  {
+    "name": "Vienna",
+    "country": "AT",
+    "cost_index": 3.5,
+    "popularity": 84,
+    "blurb": "Imperial palaces, coffee houses and the world's best public transport."
+  },
+  {
+    "name": "Budapest",
+    "country": "HU",
+    "cost_index": 2.1,
+    "popularity": 86,
+    "blurb": "Thermal baths, ruin bars and a river that splits two old cities."
+  },
+  {
+    "name": "Madrid",
+    "country": "ES",
+    "cost_index": 3.0,
+    "popularity": 85,
+    "blurb": "The Prado, late nights and the best tapas crawl in Iberia."
+  },
+  {
+    "name": "Athens",
+    "country": "GR",
+    "cost_index": 2.5,
+    "popularity": 84,
+    "blurb": "The Acropolis above a scruffy, brilliant modern city."
+  },
+  {
+    "name": "Dubai",
+    "country": "AE",
+    "cost_index": 4.2,
+    "popularity": 83,
+    "blurb": "Desert, skyline and a stopover that turned into a destination."
+  },
+  {
+    "name": "Singapore",
+    "country": "SG",
+    "cost_index": 4.5,
+    "popularity": 87,
+    "blurb": "Hawker centres with Michelin stars and a city inside a garden."
+  },
+  {
+    "name": "Hong Kong",
+    "country": "HK",
+    "cost_index": 4.0,
+    "popularity": 86,
+    "blurb": "Harbour skyline, mountain trails and dim sum at every hour."
+  },
+  {
+    "name": "Seoul",
+    "country": "KR",
+    "cost_index": 3.3,
+    "popularity": 87,
+    "blurb": "Palaces, night markets and mountains inside the city limits."
+  },
+  {
+    "name": "Kyoto",
+    "country": "JP",
+    "cost_index": 3.6,
+    "popularity": 91,
+    "blurb": "A thousand temples and the last of old Japan."
+  },
+  {
+    "name": "Osaka",
+    "country": "JP",
+    "cost_index": 3.4,
+    "popularity": 82,
+    "blurb": "Japan's kitchen: loud, friendly and built around eating."
+  },
+  {
+    "name": "Hanoi",
+    "country": "VN",
+    "cost_index": 1.2,
+    "popularity": 85,
+    "blurb": "Old quarter chaos, lake mornings and coffee with egg in it."
+  },
+  {
+    "name": "Ho Chi Minh City",
+    "country": "VN",
+    "cost_index": 1.3,
+    "popularity": 82,
+    "blurb": "Motorbike rivers, war history and food on every kerb."
+  },
+  {
+    "name": "Hoi An",
+    "country": "VN",
+    "cost_index": 1.2,
+    "popularity": 78,
+    "blurb": "Lantern-lit riverfront, tailors and a beach twenty minutes away."
+  },
+  {
+    "name": "Chiang Mai",
+    "country": "TH",
+    "cost_index": 1.2,
+    "popularity": 80,
+    "blurb": "Moated old city, mountain temples and northern Thai cooking."
+  },
+  {
+    "name": "Kuala Lumpur",
+    "country": "MY",
+    "cost_index": 1.7,
+    "popularity": 76,
+    "blurb": "Towers, colonial arcades and three cuisines on one street."
+  },
+  {
+    "name": "Denpasar",
+    "country": "ID",
+    "cost_index": 1.4,
+    "popularity": 79,
+    "blurb": "The gateway to Bali: temples, terraces and surf."
+  },
+  {
+    "name": "Phnom Penh",
+    "country": "KH",
+    "cost_index": 1.2,
+    "popularity": 68,
+    "blurb": "Riverfront capital with a difficult, essential recent history."
+  },
+  {
+    "name": "Siem Reap",
+    "country": "KH",
+    "cost_index": 1.3,
+    "popularity": 81,
+    "blurb": "Base camp for Angkor, the largest religious monument on earth."
+  },
+  {
+    "name": "Luang Prabang",
+    "country": "LA",
+    "cost_index": 1.3,
+    "popularity": 72,
+    "blurb": "Mekong monasteries and a town that goes quiet after dark."
+  },
+  {
+    "name": "Kathmandu",
+    "country": "NP",
+    "cost_index": 1.1,
+    "popularity": 77,
+    "blurb": "Temple squares, trekking permits and the Himalaya on the horizon."
+  },
+  {
+    "name": "Pokhara",
+    "country": "NP",
+    "cost_index": 1.0,
+    "popularity": 66,
+    "blurb": "Lakeside town under the Annapurnas, and where treks begin."
+  },
+  {
+    "name": "New Delhi",
+    "country": "IN",
+    "cost_index": 1.2,
+    "popularity": 83,
+    "blurb": "Mughal tombs, Lutyens avenues and the loudest markets in India."
+  },
+  {
+    "name": "Mumbai",
+    "country": "IN",
+    "cost_index": 1.4,
+    "popularity": 80,
+    "blurb": "Art deco seafront, film industry and street food worth the trip."
+  },
+  {
+    "name": "Jaipur",
+    "country": "IN",
+    "cost_index": 1.1,
+    "popularity": 79,
+    "blurb": "Pink city forts, stepwells and block-printed everything."
+  },
+  {
+    "name": "Udaipur",
+    "country": "IN",
+    "cost_index": 1.1,
+    "popularity": 74,
+    "blurb": "Lake palaces and the most photographed rooftops in Rajasthan."
+  },
+  {
+    "name": "Colombo",
+    "country": "LK",
+    "cost_index": 1.3,
+    "popularity": 62,
+    "blurb": "Colonial fort district, sea breeze and very good curry."
+  },
+  {
+    "name": "Cairo",
+    "country": "EG",
+    "cost_index": 1.3,
+    "popularity": 85,
+    "blurb": "The pyramids on the city edge and a museum full of pharaohs."
+  },
+  {
+    "name": "Marrakesh",
+    "country": "MA",
+    "cost_index": 1.6,
+    "popularity": 84,
+    "blurb": "Medina alleys, riad courtyards and the Atlas within reach."
+  },
+  {
+    "name": "Cape Town",
+    "country": "ZA",
+    "cost_index": 2.0,
+    "popularity": 86,
+    "blurb": "A mountain in the middle of the city and wine country next door."
+  },
+  {
+    "name": "Nairobi",
+    "country": "KE",
+    "cost_index": 1.8,
+    "popularity": 65,
+    "blurb": "The only capital with a national park inside its boundary."
+  },
+  {
+    "name": "Zurich",
+    "country": "CH",
+    "cost_index": 5.0,
+    "popularity": 70,
+    "blurb": "Lake, old town and the highest prices in Europe."
+  },
+  {
+    "name": "Geneva",
+    "country": "CH",
+    "cost_index": 4.9,
+    "popularity": 63,
+    "blurb": "Diplomatic lakefront with the Alps an hour away."
+  },
+  {
+    "name": "Copenhagen",
+    "country": "DK",
+    "cost_index": 4.4,
+    "popularity": 80,
+    "blurb": "Design, bicycles and the restaurant scene that reset Nordic food."
+  },
+  {
+    "name": "Oslo",
+    "country": "NO",
+    "cost_index": 4.7,
+    "popularity": 68,
+    "blurb": "Fjord city, Viking ships and the gateway north."
+  },
+  {
+    "name": "Stockholm",
+    "country": "SE",
+    "cost_index": 4.2,
+    "popularity": 74,
+    "blurb": "Fourteen islands, a preserved old town and very good coffee."
+  },
+  {
+    "name": "Reykjavik",
+    "country": "IS",
+    "cost_index": 4.6,
+    "popularity": 78,
+    "blurb": "Tiny capital, enormous landscape starting at the ring road."
+  },
+  {
+    "name": "Dublin",
+    "country": "IE",
+    "cost_index": 3.8,
+    "popularity": 76,
+    "blurb": "Literary pubs, Georgian doors and the coast on the DART line."
+  },
+  {
+    "name": "Edinburgh",
+    "country": "GB",
+    "cost_index": 3.7,
+    "popularity": 81,
+    "blurb": "A castle on a volcano and the world's biggest arts festival."
+  },
+  {
+    "name": "Krakow",
+    "country": "PL",
+    "cost_index": 1.9,
+    "popularity": 79,
+    "blurb": "Intact medieval square, Jewish quarter and sobering day trips."
+  },
+  {
+    "name": "Dubrovnik",
+    "country": "HR",
+    "cost_index": 2.8,
+    "popularity": 77,
+    "blurb": "Walled Adriatic city you can walk the ramparts of."
+  },
+  {
+    "name": "Split",
+    "country": "HR",
+    "cost_index": 2.5,
+    "popularity": 70,
+    "blurb": "A Roman palace that became a town, plus the island ferries."
+  },
+  {
+    "name": "Porto",
+    "country": "PT",
+    "cost_index": 2.3,
+    "popularity": 78,
+    "blurb": "River gorge, port cellars and tiles by the acre."
+  },
+  {
+    "name": "Seville",
+    "country": "ES",
+    "cost_index": 2.6,
+    "popularity": 77,
+    "blurb": "Moorish palaces, orange trees and flamenco that is not for tourists."
+  },
+  {
+    "name": "Florence",
+    "country": "IT",
+    "cost_index": 3.5,
+    "popularity": 88,
+    "blurb": "The Renaissance at walking scale."
+  },
+  {
+    "name": "Venice",
+    "country": "IT",
+    "cost_index": 3.9,
+    "popularity": 87,
+    "blurb": "No cars, no logic, and nowhere else like it."
+  },
+  {
+    "name": "Munich",
+    "country": "DE",
+    "cost_index": 3.6,
+    "popularity": 75,
+    "blurb": "Beer halls, Bavarian museums and the Alps ninety minutes south."
+  },
+  {
+    "name": "Tel Aviv-Yafo",
+    "country": "IL",
+    "cost_index": 3.9,
+    "popularity": 69,
+    "blurb": "Bauhaus blocks, Mediterranean beach and a very late night."
+  },
+  {
+    "name": "Amman",
+    "country": "JO",
+    "cost_index": 1.9,
+    "popularity": 67,
+    "blurb": "Hilltop capital and the base for Petra and Wadi Rum."
+  },
+  {
+    "name": "Mexico City",
+    "country": "MX",
+    "cost_index": 1.7,
+    "popularity": 88,
+    "blurb": "Aztec ruins under a colonial grid, and the best tacos on earth."
+  },
+  {
+    "name": "Oaxaca",
+    "country": "MX",
+    "cost_index": 1.5,
+    "popularity": 73,
+    "blurb": "Mole, mezcal and the strongest craft tradition in Mexico."
+  },
+  {
+    "name": "Havana",
+    "country": "CU",
+    "cost_index": 1.8,
+    "popularity": 75,
+    "blurb": "Crumbling grandeur, live son and cars from another century."
+  },
+  {
+    "name": "Cartagena",
+    "country": "CO",
+    "cost_index": 1.8,
+    "popularity": 72,
+    "blurb": "Walled Caribbean city in impossible colours."
+  },
+  {
+    "name": "Bogotá",
+    "country": "CO",
+    "cost_index": 1.5,
+    "popularity": 68,
+    "blurb": "High-altitude capital with gold museums and serious coffee."
+  },
+  {
+    "name": "Lima",
+    "country": "PE",
+    "cost_index": 1.6,
+    "popularity": 71,
+    "blurb": "Cliffs over the Pacific and one of the world's great food cities."
+  },
+  {
+    "name": "Cusco",
+    "country": "PE",
+    "cost_index": 1.5,
+    "popularity": 82,
+    "blurb": "Inca walls under colonial arches, and the road to Machu Picchu."
+  },
+  {
+    "name": "Buenos Aires",
+    "country": "AR",
+    "cost_index": 1.6,
+    "popularity": 81,
+    "blurb": "European bones, Argentine appetite, tango after midnight."
+  },
+  {
+    "name": "Rio de Janeiro",
+    "country": "BR",
+    "cost_index": 2.0,
+    "popularity": 84,
+    "blurb": "Beaches between mountains, and a city that treats them as a commons."
+  },
+  {
+    "name": "São Paulo",
+    "country": "BR",
+    "cost_index": 2.1,
+    "popularity": 66,
+    "blurb": "Endless, immigrant-built and the best restaurants in the hemisphere."
+  },
+  {
+    "name": "Santiago",
+    "country": "CL",
+    "cost_index": 2.2,
+    "popularity": 64,
+    "blurb": "Andes on the skyline, vineyards in every direction."
+  },
+  {
+    "name": "Toronto",
+    "country": "CA",
+    "cost_index": 3.6,
+    "popularity": 71,
+    "blurb": "The most multicultural city anywhere, and it shows up on the menu."
+  },
+  {
+    "name": "Montréal",
+    "country": "CA",
+    "cost_index": 3.2,
+    "popularity": 76,
+    "blurb": "French North America, bagels and a festival every week of summer."
+  },
+  {
+    "name": "Vancouver",
+    "country": "CA",
+    "cost_index": 3.8,
+    "popularity": 74,
+    "blurb": "Ocean, mountains and rainforest inside the city limits."
+  },
+  {
+    "name": "San Francisco",
+    "country": "US",
+    "cost_index": 4.7,
+    "popularity": 79,
+    "blurb": "Fog, hills and the bay that made the last fifty years."
+  },
+  {
+    "name": "Chicago",
+    "country": "US",
+    "cost_index": 3.9,
+    "popularity": 72,
+    "blurb": "The birthplace of the skyscraper, on a freshwater sea."
+  },
+  {
+    "name": "New Orleans",
+    "country": "US",
+    "cost_index": 3.4,
+    "popularity": 77,
+    "blurb": "Creole cooking, brass bands and the only US city like it."
+  },
+  {
+    "name": "Los Angeles",
+    "country": "US",
+    "cost_index": 4.3,
+    "popularity": 75,
+    "blurb": "Beaches, canyons, museums and eighty miles of sprawl between them."
+  },
+  {
+    "name": "Sydney",
+    "country": "AU",
+    "cost_index": 4.1,
+    "popularity": 83,
+    "blurb": "The harbour, the coastal walk and surf on a weekday morning."
+  },
+  {
+    "name": "Melbourne",
+    "country": "AU",
+    "cost_index": 3.9,
+    "popularity": 78,
+    "blurb": "Laneway coffee, street art and Australia's arts capital."
+  },
+  {
+    "name": "Auckland",
+    "country": "NZ",
+    "cost_index": 3.5,
+    "popularity": 65,
+    "blurb": "Volcanoes, two harbours and the jumping-off point for the north."
+  }
+]
