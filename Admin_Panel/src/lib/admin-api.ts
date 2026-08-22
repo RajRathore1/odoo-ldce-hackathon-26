@@ -19,6 +19,39 @@ export type AdminApiUser = {
   created_at: string;
 };
 
+export type AdminApiCity = {
+  id: number;
+  name: string;
+  country_name: string;
+  popularity_score: number;
+  is_active: boolean;
+};
+
+export type AdminApiActivity = {
+  id: number;
+  name: string;
+  city_name: string;
+  category_name: string;
+  activity_type: string;
+  popularity_score: number;
+  is_active: boolean;
+};
+
+export type AdminApiTrip = {
+  id: number;
+  name: string;
+  user_email: string;
+  status: "DRAFT" | "PLANNED" | "ONGOING" | "COMPLETED" | "CANCELLED";
+  start_date: string;
+  end_date: string;
+  duration_days: number;
+  total_budget: string | null;
+  estimated_cost: string;
+  currency: string;
+  is_deleted: boolean;
+  created_at: string;
+};
+
 async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAdminAccessToken();
 
@@ -35,6 +68,10 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
     clearAdminAuthed();
     window.location.href = "/login";
     throw new Error("Session expired");
+  }
+
+  if (response.status === 204) {
+    return null as T;
   }
 
   const payload = await response.json().catch(() => null);
@@ -59,4 +96,36 @@ export function updateAdminUserActive(id: number, isActive: boolean) {
     method: "PATCH",
     body: JSON.stringify({ is_active: isActive }),
   });
+}
+
+export function fetchAdminCities(limit = 6) {
+  const query = new URLSearchParams({
+    page_size: String(limit),
+    ordering: "-popularity_score",
+  });
+  return adminFetch<{ results: AdminApiCity[] }>(
+    `/admin/cities/?${query.toString()}`,
+  );
+}
+
+export function fetchAdminActivities(limit = 30) {
+  const query = new URLSearchParams({
+    page_size: String(limit),
+    ordering: "-popularity_score",
+  });
+  return adminFetch<{ results: AdminApiActivity[] }>(
+    `/admin/activities/?${query.toString()}`,
+  );
+}
+
+export function fetchAdminTrips(search?: string) {
+  const query = new URLSearchParams({ page_size: "100" });
+  if (search) query.set("search", search);
+  return adminFetch<{ results: AdminApiTrip[] }>(
+    `/admin/trips/?${query.toString()}`,
+  );
+}
+
+export function deleteAdminTrip(id: number) {
+  return adminFetch<null>(`/admin/trips/${id}/`, { method: "DELETE" });
 }

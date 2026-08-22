@@ -10,6 +10,7 @@ import {
   LogOutIcon,
   MapPinIcon,
   SearchIcon,
+  SuitcaseIcon,
   UsersIcon,
 } from "@/components/icons";
 import { cn } from "@/lib/cn";
@@ -59,6 +60,7 @@ const navItems = [
   { id: "activities", label: "Activities", icon: ActivityIcon },
   { id: "analytics", label: "Analytics", icon: ChartIcon },
   { id: "users", label: "Users", icon: UsersIcon },
+  { id: "trips", label: "Trips", icon: SuitcaseIcon },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

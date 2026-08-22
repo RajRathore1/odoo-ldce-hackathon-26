@@ -165,6 +165,25 @@ export function TrendUpIcon({ className }: IconProps) {
   );
 }
 
+export function SuitcaseIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="2.5" y="6" width="15" height="10.5" rx="1.5" />
+      <path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3h3A1.5 1.5 0 0 1 13 4.5V6" />
+      <path d="M2.5 10.5h15" />
+    </svg>
+  );
+}
+
 export function LogOutIcon({ className }: IconProps) {
   return (
     <svg

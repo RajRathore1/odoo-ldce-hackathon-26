@@ -14,8 +14,17 @@ import { PanelCard } from "@/components/panel-card";
 import { RankingList } from "@/components/ranking-list";
 import { StatCard } from "@/components/stat-card";
 import { TrendBarChart } from "@/components/trend-bar-chart";
+import { TripsTable } from "@/components/trips-table";
 import { UsersTable } from "@/components/users-table";
-import { fetchAdminUsers } from "@/lib/admin-api";
+import {
+  fetchAdminActivities,
+  fetchAdminCities,
+  fetchAdminTrips,
+  fetchAdminUsers,
+  type AdminApiCity,
+  type AdminApiActivity,
+  type AdminApiTrip,
+} from "@/lib/admin-api";
 import { cn } from "@/lib/cn";
 import {
   activityCategory,
@@ -60,6 +69,11 @@ export function AdminDashboard() {
   const [country, setCountry] = useState("all");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("all");
   const [liveUsers, setLiveUsers] = useState<AdminUser[] | null>(null);
+  const [liveCities, setLiveCities] = useState<AdminApiCity[] | null>(null);
+  const [liveActivities, setLiveActivities] = useState<AdminApiActivity[] | null>(
+    null,
+  );
+  const [liveTrips, setLiveTrips] = useState<AdminApiTrip[] | null>(null);
 
   useEffect(() => {
     fetchAdminUsers()
@@ -77,6 +91,18 @@ export function AdminDashboard() {
         );
       })
       .catch(() => setLiveUsers(null));
+
+    fetchAdminCities()
+      .then((result) => setLiveCities(result.results))
+      .catch(() => setLiveCities(null));
+
+    fetchAdminActivities()
+      .then((result) => setLiveActivities(result.results))
+      .catch(() => setLiveActivities(null));
+
+    fetchAdminTrips()
+      .then((result) => setLiveTrips(result.results))
+      .catch(() => setLiveTrips(null));
   }, []);
 
   useEffect(() => {
@@ -99,27 +125,51 @@ export function AdminDashboard() {
   const periodLabel =
     periods.find((option) => option.value === period)?.label ?? "";
 
+  const cityRows = liveCities
+    ? liveCities.map((city) => ({
+        label: city.name,
+        sublabel: city.country_name,
+        value: city.popularity_score,
+        country: city.country_name,
+      }))
+    : data.cities.map((city) => ({
+        label: city.city,
+        sublabel: city.country,
+        value: city.trips,
+        country: city.country,
+      }));
+
+  const activityRows = liveActivities
+    ? liveActivities.map((activity) => ({
+        label: activity.name,
+        value: activity.popularity_score,
+        type: activity.activity_type.toLowerCase(),
+      }))
+    : data.activities.map((activity) => ({
+        label: activity.activity,
+        value: activity.bookings,
+        type: activityCategory[activity.activity] ?? "all",
+      }));
+
   const countryOptions = useMemo(
-    () => ["all", ...new Set(data.cities.map((city) => city.country))],
-    [data.cities],
+    () => ["all", ...new Set(cityRows.map((city) => city.country))],
+    [cityRows],
   );
 
   const filteredCities = useMemo(
     () =>
       country === "all"
-        ? data.cities
-        : data.cities.filter((city) => city.country === country),
-    [data.cities, country],
+        ? cityRows
+        : cityRows.filter((city) => city.country === country),
+    [cityRows, country],
   );
 
   const filteredActivities = useMemo(
     () =>
       activityFilter === "all"
-        ? data.activities
-        : data.activities.filter(
-            (activity) => activityCategory[activity.activity] === activityFilter,
-          ),
-    [data.activities, activityFilter],
+        ? activityRows
+        : activityRows.filter((activity) => activity.type === activityFilter),
+    [activityRows, activityFilter],
   );
 
   return (
@@ -261,13 +311,7 @@ export function AdminDashboard() {
           }
         >
           {filteredCities.length > 0 ? (
-            <RankingList
-              items={filteredCities.map((city) => ({
-                label: city.city,
-                sublabel: city.country,
-                value: city.trips,
-              }))}
-            />
+            <RankingList items={filteredCities} />
           ) : (
             <EmptyPanelState message="No cities match this filter." />
           )}
@@ -298,12 +342,7 @@ export function AdminDashboard() {
             }
           >
             {filteredActivities.length > 0 ? (
-              <RankingList
-                items={filteredActivities.map((activity) => ({
-                  label: activity.activity,
-                  value: activity.bookings,
-                }))}
-              />
+              <RankingList items={filteredActivities} />
             ) : (
               <EmptyPanelState message="No activities match this filter." />
             )}
@@ -326,6 +365,26 @@ export function AdminDashboard() {
           description="Search, sort, filter and moderate accounts."
         >
           <UsersTable users={liveUsers ?? mockUsers} />
+        </PanelCard>
+      </div>
+
+      <div id="trips">
+        <PanelCard
+          title="Manage trips"
+          description="Search and moderate trips created on the platform."
+        >
+          {liveTrips ? (
+            <TripsTable
+              trips={liveTrips}
+              onDeleted={(id) =>
+                setLiveTrips((current) =>
+                  current ? current.filter((trip) => trip.id !== id) : current,
+                )
+              }
+            />
+          ) : (
+            <EmptyPanelState message="Trips are unavailable right now." />
+          )}
         </PanelCard>
       </div>
     </div>
