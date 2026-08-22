@@ -46,12 +46,14 @@ const statusTone: Record<TripStatus, Tone> = {
   ongoing: "warning",
   upcoming: "info",
   completed: "success",
+  cancelled: "danger",
 };
 
 const statusLabel: Record<TripStatus, string> = {
   ongoing: "Ongoing",
   upcoming: "Up-coming",
   completed: "Completed",
+  cancelled: "Cancelled",
 };
 
 export function StatusBadge({

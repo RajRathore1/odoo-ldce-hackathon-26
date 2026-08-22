@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { FormAlert } from "@/components/form-alert";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
 import { SectionHeader } from "@/components/section-header";
+import { SubmitError, postJson } from "@/lib/api/browser";
 import { regions, suggestions } from "@/lib/mock-data";
 import type { SelectOption } from "@/lib/types";
 
@@ -30,6 +32,9 @@ export function TripDetailsForm() {
   const [endDate, setEndDate] = useState("");
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [sections, setSections] = useState<Section[]>([]);
+  const [alert, setAlert] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   function toggleSuggestion(id: string, label: string) {
     setAdded((prev) => {
@@ -70,19 +75,52 @@ export function TripDetailsForm() {
     });
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    router.push("/trips/new/itinerary");
+
+    if (endDate < startDate) {
+      setErrors({ end_date: "End date cannot be before the start date" });
+      return;
+    }
+
+    setAlert(null);
+    setErrors({});
+    setSaving(true);
+
+    // The place picker and the sections below still run on mock data: the
+    // backend has no /cities/ or /trips/{id}/stops/ yet. Only the trip itself
+    // is persisted for now.
+    const place = regions.find((region) => region.id === placeId);
+
+    try {
+      const { trip } = await postJson<{ trip: { id: number } }>("/api/trips", {
+        name: title,
+        start_date: startDate,
+        end_date: endDate,
+        description: place ? `Around ${place.name}, ${place.country}` : "",
+      });
+      router.push(`/trips/new/itinerary?trip=${trip.id}`);
+      router.refresh();
+    } catch (error) {
+      if (error instanceof SubmitError) {
+        setAlert(error.message);
+        setErrors(error.fields);
+      }
+      setSaving(false);
+    }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-10">
+      <FormAlert message={alert} />
+
       <div className="grid gap-4 rounded-2xl border border-border bg-surface p-6 shadow-sm sm:grid-cols-2 sm:p-8">
         <Input
           label="Trip title"
           placeholder="Kerala backwaters, take two"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
+          error={errors.name}
           wrapperClassName="sm:col-span-2"
           required
         />
@@ -102,6 +140,7 @@ export function TripDetailsForm() {
           type="date"
           value={startDate}
           onChange={(event) => setStartDate(event.target.value)}
+          error={errors.start_date}
           required
         />
         <Input
@@ -110,6 +149,7 @@ export function TripDetailsForm() {
           value={endDate}
           min={startDate || undefined}
           onChange={(event) => setEndDate(event.target.value)}
+          error={errors.end_date}
           required
         />
       </div>
@@ -198,8 +238,8 @@ export function TripDetailsForm() {
       </section>
 
       <div className="flex justify-end gap-3 border-t border-border pt-6">
-        <Button type="submit" size="lg">
-          Continue to itinerary
+        <Button type="submit" size="lg" disabled={saving}>
+          {saving ? "Creating trip..." : "Continue to itinerary"}
         </Button>
       </div>
     </form>

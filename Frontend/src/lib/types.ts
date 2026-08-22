@@ -1,4 +1,4 @@
-export type TripStatus = "ongoing" | "upcoming" | "completed";
+export type TripStatus = "ongoing" | "upcoming" | "completed" | "cancelled";
 
 export type Trip = {
   id: string;

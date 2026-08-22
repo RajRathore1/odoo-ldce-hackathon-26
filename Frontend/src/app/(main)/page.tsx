@@ -1,10 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { LandingExplorer } from "@/components/landing-explorer";
+import { listTrips } from "@/lib/api/trips-service";
 import { GlobeMark } from "@/components/navbar";
 import { buttonStyles } from "@/components/ui/button";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const trips = await listTrips();
+
   return (
     <div className="space-y-12">
       <section className="relative overflow-hidden rounded-3xl bg-primary px-6 py-14 text-white sm:px-12 sm:py-20">
@@ -65,7 +68,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <LandingExplorer />
+      <LandingExplorer trips={trips} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   accessCookieOptions,
   refreshCookieOptions,
 } from "@/lib/api/cookies";
+import { refreshTokens } from "@/lib/api/auth-service";
 import { ApiError, readEnvelope } from "@/lib/api/envelope";
 import type { AuthUser, Tokens } from "@/lib/api/types";
 
@@ -51,6 +52,29 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}) {
   });
 
   return readEnvelope<T>(response);
+}
+
+/**
+ * Same call, but for route handlers, which proxy.ts does not run for and which
+ * are allowed to write cookies. On a 401 it rotates the token once and retries.
+ */
+export async function apiFetchWithRefresh<T>(
+  path: string,
+  init: RequestInit = {},
+) {
+  try {
+    return await apiFetch<T>(path, init);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+
+    const { refresh } = await readTokens();
+    if (!refresh) throw error;
+
+    const tokens = await refreshTokens(refresh);
+    await setSession(tokens);
+
+    return apiFetch<T>(path, init);
+  }
 }
 
 export async function getCurrentUser() {
