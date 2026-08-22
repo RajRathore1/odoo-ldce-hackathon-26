@@ -50,7 +50,7 @@ Fonts: Poppins for headings (`font-heading`), Inter for body (default).
 
 - [x] Design system + shared components
 - [x] Hour 1 — Login & Registration
-- [ ] Hour 2 — Main landing page
+- [x] Hour 2 — Main landing page
 - [ ] Hour 3 — Create a new trip
 - [ ] Hour 4 — Build itinerary
 - [ ] Hour 5 — User trip listing

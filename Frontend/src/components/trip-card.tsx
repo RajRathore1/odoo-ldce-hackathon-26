@@ -1,15 +1,9 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { StatusBadge } from "@/components/ui/badge";
+import { coverGradients } from "@/lib/covers";
 import { formatDateRange, formatMoney } from "@/lib/format";
-import type { CoverTone, Trip } from "@/lib/types";
-
-const covers: Record<CoverTone, string> = {
-  sunset: "from-accent to-danger",
-  ocean: "from-info to-primary",
-  forest: "from-success to-info",
-  dusk: "from-primary to-danger",
-};
+import type { Trip } from "@/lib/types";
 
 type TripCardProps = {
   trip: Trip;
@@ -28,7 +22,7 @@ export function TripCard({ trip, href, className }: TripCardProps) {
       <div
         className={cn(
           "relative h-28 overflow-hidden bg-gradient-to-br sm:h-32",
-          covers[trip.cover],
+          coverGradients[trip.cover],
         )}
       >
         <div className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/5" />

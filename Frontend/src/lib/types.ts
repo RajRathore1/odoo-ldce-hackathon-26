@@ -15,6 +15,16 @@ export type Trip = {
   cover: CoverTone;
 };
 
+export type Region = {
+  id: string;
+  name: string;
+  country: string;
+  blurb: string;
+  tripCount: number;
+  fromPrice: number;
+  cover: CoverTone;
+};
+
 export type SelectOption = {
   label: string;
   value: string;

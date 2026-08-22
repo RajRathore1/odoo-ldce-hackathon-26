@@ -1,4 +1,61 @@
-import type { Trip } from "@/lib/types";
+import type { Region, Trip } from "@/lib/types";
+
+export const regions: Region[] = [
+  {
+    id: "himalayan-north",
+    name: "Himalayan North",
+    country: "India",
+    blurb: "High passes, monasteries and very cold mornings",
+    tripCount: 128,
+    fromPrice: 32000,
+    cover: "ocean",
+  },
+  {
+    id: "kerala",
+    name: "Kerala Backwaters",
+    country: "India",
+    blurb: "Houseboats, coconut groves and slow afternoons",
+    tripCount: 96,
+    fromPrice: 28000,
+    cover: "forest",
+  },
+  {
+    id: "rajasthan",
+    name: "Rajasthan",
+    country: "India",
+    blurb: "Forts, step wells and desert sunsets",
+    tripCount: 143,
+    fromPrice: 24000,
+    cover: "sunset",
+  },
+  {
+    id: "japan",
+    name: "Japan",
+    country: "Japan",
+    blurb: "Bullet trains, temple towns and autumn colour",
+    tripCount: 71,
+    fromPrice: 165000,
+    cover: "dusk",
+  },
+  {
+    id: "bali",
+    name: "Bali & Nusa Islands",
+    country: "Indonesia",
+    blurb: "Rice terraces, reef dives and warm evenings",
+    tripCount: 88,
+    fromPrice: 74000,
+    cover: "ocean",
+  },
+  {
+    id: "swiss-alps",
+    name: "Swiss Alps",
+    country: "Switzerland",
+    blurb: "Cable cars, lake towns and long ridge walks",
+    tripCount: 54,
+    fromPrice: 210000,
+    cover: "dusk",
+  },
+];
 
 export const trips: Trip[] = [
   {
