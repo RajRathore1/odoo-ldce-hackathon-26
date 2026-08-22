@@ -41,6 +41,19 @@ env/
 *.sqlite
 *.sqlite3
 *.db
+# WAL journal mode (enabled in core/apps.py) writes these sidecars next to the
+# database file. The globs above do not match them.
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+
+# User uploads — avatars and trip cover photos. Not tracked at all: Django's
+# FileSystemStorage creates each `upload_to` directory on first save, so a fresh
+# clone needs nothing here.
+Backend/media/
+
+# collectstatic output (STATIC_ROOT). Generated, never edited by hand.
+Backend/staticfiles/
 
 # Editors
 .vscode/
@@ -51,3 +64,9 @@ env/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Internal planning docs — kept local, shared with the team out-of-band
+Backend/docs/
+Backend/CLAUDE.md
+CLAUDE.md
+.claude/
