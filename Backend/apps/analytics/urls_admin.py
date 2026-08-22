@@ -1,9 +1,16 @@
 """
-Admin routes for analytics. Mounted by `config/admin_urls.py`, which applies
-`IsAdminRole` to the whole tree.
+Admin routes for analytics. Mounted by `config/admin_urls.py` under
+`/api/v1/admin/analytics/`.
 
-Empty until the endpoints land — the include in `config/` already
-resolves, so adding a route here needs no change to `config/`.
+⚠️ The mount point does **not** apply permissions — each view carries
+`AdminOnlyMixin` itself, because DRF resolves permission classes on the view and
+authentication happens inside it (trap #8).
 """
 
-urlpatterns: list = []
+from django.urls import path
+
+from apps.analytics.views import AnalyticsOverviewView
+
+urlpatterns = [
+    path("overview/", AnalyticsOverviewView.as_view(), name="admin-analytics-overview"),
+]

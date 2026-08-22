@@ -131,13 +131,33 @@ class TripViewSet(OwnerQuerysetMixin, SerializerActionMixin, ModelViewSet):
         data = TripDetailSerializer(trip, context=self._cost_context([trip])).data
         return respond(data=data, message=message)
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "group_by",
+                enum=list(selectors.GROUP_BY_CHOICES),
+                description=(
+                    "Adds `data.groups` — `[{key, label, count}]` over the whole "
+                    "filtered set, not just this page. `results` stays flat."
+                ),
+            )
+        ]
+    )
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         # Pagination is the DRF default and this view does not opt out, so
         # `page` is never None here.
         page = self.paginate_queryset(queryset)
         serializer = TripListSerializer(page, many=True, context=self._cost_context(page))
-        return self.get_paginated_response(serializer.data)
+        response = self.get_paginated_response(serializer.data)
+
+        # Screen 3's "Group by" control. A sibling of `results`, not a
+        # replacement for it: the cards render from the flat list and the chips
+        # from the counts, so asking for both must not cost two requests.
+        group_by = request.query_params.get("group_by")
+        if group_by in selectors.GROUP_BY_CHOICES:
+            response.data["groups"] = selectors.trip_groups(queryset, group_by)
+        return response
 
     def retrieve(self, request, *args, **kwargs):
         return self._detail_response(self.get_object())

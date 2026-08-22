@@ -9,7 +9,9 @@ from collections import defaultdict
 from decimal import Decimal
 
 from django.db.models import Count, Prefetch, Q
+from django.db.models.functions import TruncMonth
 
+from apps.trips.constants import TripStatus
 from apps.trips.models import Trip, TripActivity, TripStop
 from core.utils import daterange
 
@@ -211,3 +213,86 @@ def cost_summaries_for(trip_ids) -> dict[int, dict]:
 
     summaries = bulk_trip_cost_summary(trip_ids)
     return {trip_id: summaries.get(trip_id, ZERO_COST_SUMMARY) for trip_id in trip_ids}
+
+
+#: Display order for `?group_by=status`. Not the declaration order and not
+#: alphabetical: it is the order Screen 3's chips read in, most current first.
+STATUS_ORDER = (
+    TripStatus.ONGOING,
+    TripStatus.PLANNED,
+    TripStatus.DRAFT,
+    TripStatus.COMPLETED,
+    TripStatus.CANCELLED,
+)
+
+GROUP_BY_CHOICES = ("status", "month", "country")
+
+
+def trip_groups(queryset, group_by: str) -> list[dict]:
+    """
+    Counts for the "Group by" control, as `[{key, label, count}]`.
+
+    Computed over the **whole filtered queryset**, not the current page: a chip
+    reading "Completed (5)" has to mean five trips, not five on this page.
+
+    Empty groups are omitted — these are chips, and a chip for a status the user
+    has never used is noise.
+
+    ⚠️ Regrouped off a **clean** queryset holding the same trips, not off the
+    caller's. `trip_queryset()` already carries an `activities_count`
+    annotation, which puts a `GROUP BY trip.id` on the query — grouping again on
+    top of that returns one row per trip with a count of 1, silently, for every
+    grouping. Re-selecting by id costs one subquery and makes this function
+    independent of whatever annotations the caller happens to have added.
+    """
+    grouped = Trip.objects.filter(pk__in=queryset.values("pk"))
+
+    if group_by == "status":
+        counts = dict(
+            grouped.values_list("status").annotate(total=Count("pk", distinct=True))
+        )
+        labels = dict(TripStatus.choices)
+        return [
+            {"key": status, "label": labels[status], "count": counts[status]}
+            for status in STATUS_ORDER
+            if counts.get(status)
+        ]
+
+    if group_by == "month":
+        rows = (
+            grouped.annotate(month=TruncMonth("start_date"))
+            .values("month")
+            .annotate(total=Count("pk", distinct=True))
+            .order_by("month")
+        )
+        return [
+            {
+                "key": row["month"].strftime("%Y-%m"),
+                "label": row["month"].strftime("%B %Y"),
+                "count": row["total"],
+            }
+            for row in rows
+            if row["month"]
+        ]
+
+    if group_by == "country":
+        # A trip with stops in two countries counts under both, which is the
+        # honest answer for "trips involving France". `distinct=True` stops the
+        # join from counting it twice within one country.
+        rows = (
+            grouped.filter(stops__is_deleted=False)
+            .values("stops__city__country", "stops__city__country__name")
+            .annotate(total=Count("pk", distinct=True))
+            .order_by("-total", "stops__city__country__name")
+        )
+        return [
+            {
+                "key": str(row["stops__city__country"]),
+                "label": row["stops__city__country__name"],
+                "count": row["total"],
+            }
+            for row in rows
+            if row["stops__city__country"]
+        ]
+
+    return []

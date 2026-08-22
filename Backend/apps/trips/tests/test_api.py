@@ -12,7 +12,7 @@ from rest_framework.test import APIClient
 from apps.accounts.tests.factories import DEFAULT_PASSWORD, UserFactory
 from apps.activities.constants import ActivityType
 from apps.activities.tests.factories import ActivityFactory
-from apps.geo.tests.factories import CityFactory
+from apps.geo.tests.factories import CityFactory, CountryFactory
 from apps.trips.constants import TripStatus
 from apps.trips.models import Trip, TripActivity, TripStop
 from apps.trips.tests.factories import (
@@ -1302,3 +1302,141 @@ class TestItinerary:
 
     def test_it_requires_authentication(self, trip):
         assert APIClient().get(self.url(trip.pk)).status_code == 401
+
+
+# ------------------------------------------------------------------- group by
+
+
+class TestTripGroupBy:
+    """Screen 3's "Group by" control."""
+
+    def test_no_group_by_means_no_groups_key(self, client, user):
+        TripFactory(user=user)
+
+        assert "groups" not in client.get(LIST_URL).json()["data"]
+
+    def test_an_unknown_grouping_is_ignored_rather_than_a_400(self, client, user):
+        TripFactory(user=user)
+
+        response = client.get(LIST_URL, {"group_by": "colour"})
+
+        assert response.status_code == 200
+        assert "groups" not in response.json()["data"]
+
+    def test_results_stay_flat_alongside_the_groups(self, client, user):
+        """The cards render from `results`, the chips from `groups` — one request."""
+        TripFactory(user=user)
+
+        body = client.get(LIST_URL, {"group_by": "status"}).json()["data"]
+
+        assert len(body["results"]) == 1
+        assert body["pagination"]["count"] == 1
+        assert body["groups"]
+
+    def test_group_by_status_counts_and_labels(self, client, user):
+        TripFactory(
+            user=user,
+            start_date=TODAY - timedelta(days=1),
+            end_date=TODAY + timedelta(days=1),
+        )
+        TripFactory.create_batch(3, user=user)  # PLANNED
+        TripFactory(
+            user=user,
+            start_date=TODAY - timedelta(days=9),
+            end_date=TODAY - timedelta(days=2),
+        )
+
+        groups = client.get(LIST_URL, {"group_by": "status"}).json()["data"]["groups"]
+
+        assert groups == [
+            {"key": "ONGOING", "label": "Ongoing", "count": 1},
+            {"key": "PLANNED", "label": "Upcoming", "count": 3},
+            {"key": "COMPLETED", "label": "Completed", "count": 1},
+        ]
+
+    def test_empty_statuses_are_omitted(self, client, user):
+        TripFactory(user=user)
+
+        groups = client.get(LIST_URL, {"group_by": "status"}).json()["data"]["groups"]
+
+        assert [group["key"] for group in groups] == ["PLANNED"]
+
+    def test_counts_cover_the_whole_set_not_just_the_page(self, client, user):
+        """A chip reading "Upcoming (25)" has to mean 25 trips, not 25 on page 1."""
+        TripFactory.create_batch(25, user=user)
+
+        body = client.get(LIST_URL, {"group_by": "status", "page_size": 5}).json()["data"]
+
+        assert len(body["results"]) == 5
+        assert body["groups"][0]["count"] == 25
+
+    def test_grouping_respects_the_active_filters(self, client, user):
+        TripFactory(user=user, name="Keep me")
+        TripFactory(user=user, name="Filter me out")
+
+        body = client.get(LIST_URL, {"group_by": "status", "search": "keep"}).json()["data"]
+
+        assert body["groups"][0]["count"] == 1
+
+    def test_group_by_month(self, client, user):
+        TripFactory(user=user, start_date=date(2026, 11, 2), end_date=date(2026, 11, 9))
+        TripFactory(user=user, start_date=date(2026, 11, 20), end_date=date(2026, 11, 25))
+        TripFactory(user=user, start_date=date(2027, 1, 5), end_date=date(2027, 1, 9))
+
+        groups = client.get(LIST_URL, {"group_by": "month"}).json()["data"]["groups"]
+
+        assert groups == [
+            {"key": "2026-11", "label": "November 2026", "count": 2},
+            {"key": "2027-01", "label": "January 2027", "count": 1},
+        ]
+
+    def test_group_by_country(self, client, user):
+        india = CountryFactory(name="India", iso2="IN")
+        france = CountryFactory(name="France", iso2="FR")
+        first = TripFactory(user=user)
+        TripStopFactory(
+            trip=first,
+            city=CityFactory(country=india),
+            start_date=first.start_date,
+            end_date=first.start_date + timedelta(days=1),
+        )
+        second = TripFactory(user=user)
+        TripStopFactory(
+            trip=second,
+            city=CityFactory(country=india),
+            start_date=second.start_date,
+            end_date=second.start_date + timedelta(days=1),
+        )
+        TripStopFactory(
+            trip=second,
+            city=CityFactory(country=france),
+            start_date=second.start_date + timedelta(days=2),
+            end_date=second.start_date + timedelta(days=3),
+        )
+
+        groups = client.get(LIST_URL, {"group_by": "country"}).json()["data"]["groups"]
+
+        assert groups == [
+            {"key": str(india.pk), "label": "India", "count": 2},
+            {"key": str(france.pk), "label": "France", "count": 1},
+        ]
+
+    def test_a_trip_with_two_stops_in_one_country_counts_once(self, client, user):
+        india = CountryFactory(name="India", iso2="IN")
+        trip = TripFactory(user=user)
+        for offset in (0, 3):
+            TripStopFactory(
+                trip=trip,
+                city=CityFactory(country=india),
+                start_date=trip.start_date + timedelta(days=offset),
+                end_date=trip.start_date + timedelta(days=offset + 1),
+            )
+
+        groups = client.get(LIST_URL, {"group_by": "country"}).json()["data"]["groups"]
+
+        assert groups == [{"key": str(india.pk), "label": "India", "count": 1}]
+
+    def test_a_trip_with_no_stops_is_in_no_country_group(self, client, user):
+        TripFactory(user=user)
+
+        assert client.get(LIST_URL, {"group_by": "country"}).json()["data"]["groups"] == []

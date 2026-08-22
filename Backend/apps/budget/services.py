@@ -123,6 +123,34 @@ def bulk_trip_cost_summary(trip_ids) -> dict[int, dict]:
     }
 
 
+def platform_cost_totals() -> dict:
+    """
+    The same formula, aggregated across **every** trip. Two queries.
+
+    Mathematically the sum of every `trip_cost_summary`'s `grand_total`, which is
+    why it lives here next to them rather than in `analytics`: it is cost
+    arithmetic, and there is one module for that. Looping
+    `bulk_trip_cost_summary` over every trip on the platform would give the same
+    answer and scan the whole table to do it.
+
+    Note the absence of currency handling — a platform-wide total mixes them, so
+    the caller has to say what it is presenting. See `analytics.selectors`.
+    """
+    activities_cost = TripActivity.objects.filter(
+        trip_stop__is_deleted=False, trip_stop__trip__is_deleted=False
+    ).aggregate(total=Sum("cost"))["total"]
+    expenses_cost = Expense.objects.filter(trip__is_deleted=False).aggregate(
+        total=Sum("amount")
+    )["total"]
+
+    activities_cost = _quantise(activities_cost or ZERO)
+    expenses_cost = _quantise(expenses_cost or ZERO)
+    return {
+        "activities_cost": activities_cost,
+        "expenses_cost": expenses_cost,
+        "grand_total": activities_cost + expenses_cost,
+    }
+
 def trip_budget_breakdown(trip: Trip) -> dict:
     """
     The whole Screen 9 payload: buckets, per-stop, per-day and alerts.

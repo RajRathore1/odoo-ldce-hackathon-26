@@ -279,3 +279,100 @@ def _run_password_validators(password: str, user=None) -> None:
         validate_password(password, user=user)
     except DjangoValidationError as exc:
         raise serializers.ValidationError({"password": list(exc.messages)}) from exc
+
+
+# ---------------------------------------------------------------------- admin
+
+class AdminLoginSerializer(LoginSerializer):
+    """
+    `POST /admin/auth/login/` — the Admin Panel's sign-in.
+
+    Same credentials as the user API, because there is one `User` table: a
+    `createsuperuser` account or anyone with `role == ADMIN` gets in. The extra
+    rule is the point — a valid password from an ordinary user is a **403**, not
+    a token. Without that check the admin panel would hand a session to any
+    registered user and only discover the problem one request later.
+    """
+
+    def validate(self, attrs: dict) -> dict:
+        attrs = super().validate(attrs)
+        if not attrs["user"].is_admin:
+            raise PermissionDenied("This account does not have administrator access.")
+        return attrs
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    """
+    One row of `GET /admin/users/`.
+
+    Wider than any user-facing shape on purpose — this is the moderation table,
+    so it shows email, role and the deleted flag. It is why the admin tree has
+    its own serializers: a user endpoint must never be able to reach this class.
+    """
+
+    full_name = serializers.CharField(read_only=True)
+    city_name = serializers.CharField(source="city.name", read_only=True, default=None)
+    country_name = serializers.CharField(
+        source="country.name", read_only=True, default=None
+    )
+    trips_count = serializers.SerializerMethodField()
+    posts_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "email",
+            "full_name",
+            "role",
+            "is_active",
+            "is_staff",
+            "is_email_verified",
+            "is_deleted",
+            "city_name",
+            "country_name",
+            "trips_count",
+            "posts_count",
+            "last_login",
+            "created_at",
+        )
+
+    def get_trips_count(self, user) -> int:
+        """From the selector's annotation — never a query per row."""
+        return getattr(user, "trips_count", 0)
+
+    def get_posts_count(self, user) -> int:
+        """Always 0: the community app is P2 and cut. The key stays for the UI."""
+        return 0
+
+
+class AdminUserDetailSerializer(AdminUserSerializer):
+    """`GET /admin/users/{id}/` — the row plus the rest of the profile."""
+
+    class Meta(AdminUserSerializer.Meta):
+        fields = (
+            *AdminUserSerializer.Meta.fields,
+            "first_name",
+            "last_name",
+            "phone_number",
+            "avatar",
+            "additional_info",
+            "language",
+            "currency",
+            "deleted_at",
+            "updated_at",
+        )
+
+
+class AdminUserUpdateSerializer(serializers.ModelSerializer):
+    """
+    `PATCH /admin/users/{id}/` — exactly three fields.
+
+    Not the whole model: an admin moderates accounts, they do not edit somebody's
+    phone number or currency. Narrow on purpose, so this endpoint cannot become
+    a general-purpose user editor by accident.
+    """
+
+    class Meta:
+        model = User
+        fields = ("is_active", "role", "is_staff")
