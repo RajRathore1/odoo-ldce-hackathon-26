@@ -1,7 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { StatusBadge } from "@/components/ui/badge";
-import { coverGradients } from "@/lib/covers";
 import { formatDateRange, formatMoney } from "@/lib/format";
 import type { Trip } from "@/lib/types";
 
@@ -19,13 +19,15 @@ export function TripCard({ trip, href, className }: TripCardProps) {
         className,
       )}
     >
-      <div
-        className={cn(
-          "relative h-28 overflow-hidden bg-gradient-to-br sm:h-32",
-          coverGradients[trip.cover],
-        )}
-      >
-        <div className="absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/5" />
+      <div className="relative h-28 overflow-hidden bg-bg sm:h-32">
+        <Image
+          src={trip.image}
+          alt={trip.title}
+          fill
+          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+          className="object-cover transition-transform duration-300 group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/10 transition-colors duration-200 group-hover:from-black/50" />
         <span className="absolute top-3 left-3 rounded-full bg-surface/90 px-2.5 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur-sm">
           {trip.city}, {trip.country}
         </span>

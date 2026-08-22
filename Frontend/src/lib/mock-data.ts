@@ -8,7 +8,6 @@ export const regions: Region[] = [
     blurb: "High passes, monasteries and very cold mornings",
     tripCount: 128,
     fromPrice: 32000,
-    cover: "ocean",
     image:
       "https://images.unsplash.com/photo-1760835251791-1fda687de791?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
@@ -19,7 +18,6 @@ export const regions: Region[] = [
     blurb: "Houseboats, coconut groves and slow afternoons",
     tripCount: 96,
     fromPrice: 28000,
-    cover: "forest",
     image:
       "https://images.unsplash.com/photo-1785932413547-cdd1159e1f1e?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
@@ -30,7 +28,6 @@ export const regions: Region[] = [
     blurb: "Forts, step wells and desert sunsets",
     tripCount: 143,
     fromPrice: 24000,
-    cover: "sunset",
     image:
       "https://images.unsplash.com/photo-1599661046289-e31897846e41?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
@@ -41,7 +38,6 @@ export const regions: Region[] = [
     blurb: "Bullet trains, temple towns and autumn colour",
     tripCount: 71,
     fromPrice: 165000,
-    cover: "dusk",
     image:
       "https://images.unsplash.com/photo-1558870832-c8db4b5b47d1?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
@@ -52,7 +48,6 @@ export const regions: Region[] = [
     blurb: "Rice terraces, reef dives and warm evenings",
     tripCount: 88,
     fromPrice: 74000,
-    cover: "ocean",
     image:
       "https://images.unsplash.com/photo-1557093793-d149a38a1be8?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
@@ -63,7 +58,6 @@ export const regions: Region[] = [
     blurb: "Cable cars, lake towns and long ridge walks",
     tripCount: 54,
     fromPrice: 210000,
-    cover: "dusk",
     image:
       "https://images.unsplash.com/photo-1755611532271-4ac09b51f2bc?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
@@ -80,7 +74,8 @@ export const trips: Trip[] = [
     budget: 64000,
     stops: 4,
     status: "ongoing",
-    cover: "forest",
+    image:
+      "https://images.unsplash.com/photo-1785932413547-cdd1159e1f1e?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
   {
     id: "tokyo-autumn",
@@ -92,7 +87,8 @@ export const trips: Trip[] = [
     budget: 210000,
     stops: 6,
     status: "upcoming",
-    cover: "dusk",
+    image:
+      "https://images.unsplash.com/photo-1766133239036-e37f42a54869?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
   {
     id: "rajasthan-loop",
@@ -104,7 +100,8 @@ export const trips: Trip[] = [
     budget: 88000,
     stops: 5,
     status: "upcoming",
-    cover: "sunset",
+    image:
+      "https://images.unsplash.com/photo-1599661046289-e31897846e41?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
   {
     id: "bali-reset",
@@ -116,7 +113,8 @@ export const trips: Trip[] = [
     budget: 132000,
     stops: 3,
     status: "completed",
-    cover: "ocean",
+    image:
+      "https://images.unsplash.com/photo-1557093793-d149a38a1be8?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
   {
     id: "leh-ladakh",
@@ -128,7 +126,8 @@ export const trips: Trip[] = [
     budget: 74000,
     stops: 7,
     status: "completed",
-    cover: "ocean",
+    image:
+      "https://images.unsplash.com/photo-1760835251791-1fda687de791?fm=jpg&q=70&w=800&auto=format&fit=crop",
   },
 ];
 

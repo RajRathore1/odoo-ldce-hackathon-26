@@ -1,7 +1,5 @@
 export type TripStatus = "ongoing" | "upcoming" | "completed";
 
-export type CoverTone = "sunset" | "ocean" | "forest" | "dusk";
-
 export type Trip = {
   id: string;
   title: string;
@@ -12,7 +10,7 @@ export type Trip = {
   budget: number;
   stops: number;
   status: TripStatus;
-  cover: CoverTone;
+  image: string;
 };
 
 export type Region = {
@@ -22,7 +20,6 @@ export type Region = {
   blurb: string;
   tripCount: number;
   fromPrice: number;
-  cover: CoverTone;
   image: string;
 };
 
